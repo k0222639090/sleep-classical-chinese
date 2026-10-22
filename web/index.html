@@ -105,11 +105,28 @@
       </div>
     </header>
 
+    <!-- 行動版專用頂部吸頂導航分頁 (徹底解決手機版滑動卡頓與篇章找不到問題) -->
+    <nav class="mobile-segmented-nav" id="mobileSegmentedNav">
+      <button class="mobile-nav-btn active" data-tab="player" id="tabBtnPlayer">
+        <span class="nav-btn-icon">🎧</span>
+        <span class="nav-btn-text">正在播放</span>
+      </button>
+      <button class="mobile-nav-btn" data-tab="playlist" id="tabBtnPlaylist">
+        <span class="nav-btn-icon">📖</span>
+        <span class="nav-btn-text">選集清單</span>
+        <span class="nav-btn-badge" id="mobileTabPlaylistCount">12</span>
+      </button>
+      <button class="mobile-nav-btn" data-tab="reading" id="tabBtnReading">
+        <span class="nav-btn-icon">📜</span>
+        <span class="nav-btn-text">文言精讀</span>
+      </button>
+    </nav>
+
     <!-- 主版面 Layout -->
-    <main class="main-layout">
+    <main class="main-layout" id="mainLayout" data-mobile-tab="player">
 
       <!-- 左側欄：核心播放器與篇章清單 -->
-      <section class="left-panel">
+      <section class="left-panel" id="mainLeftPanel">
         
         <!-- 播放器卡片 -->
         <div class="player-card" id="mainPlayerCard">
@@ -193,10 +210,17 @@
               <button class="speed-btn" data-speed="1.2">1.2x</button>
             </div>
           </div>
+
+          <!-- 手機版快速查看選集按鈕 -->
+          <button class="btn-mobile-jump-playlist" id="btnMobileJumpPlaylist" title="查看全部篇章選集">
+            <span>📖</span>
+            <span id="btnJumpPlaylistText">查看全部篇章選集清單</span>
+            <span class="jump-arrow">❯</span>
+          </button>
         </div>
 
         <!-- 播放清單卡片 -->
-        <div class="playlist-card">
+        <div class="playlist-card" id="mainPlaylistCard">
           <div class="playlist-header">
             <h3 class="playlist-title">
               <span>📖</span>
@@ -222,7 +246,7 @@
       </section>
 
       <!-- 右側欄：文言文圖文對照與逐篇解析區 -->
-      <section class="right-panel">
+      <section class="right-panel" id="mainReadingPanel">
         
         <article class="reading-card">
           <!-- 閱讀工具列 -->
@@ -371,6 +395,19 @@
           <span>取消自動停止 · 自由連續播放</span>
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- 手機端吸底迷你播放條 (切換到選集清單或閱讀模式時常駐浮現) -->
+  <div class="mobile-mini-player" id="mobileMiniPlayer">
+    <img src="assets/icon-192.png" alt="封面" class="mini-player-thumb" id="miniPlayerThumb">
+    <div class="mini-player-info" id="miniPlayerInfo">
+      <div class="mini-player-title" id="miniPlayerTitle">王羲之坦腹東床</div>
+      <div class="mini-player-sub" id="miniPlayerSub">世說新語名士特輯</div>
+    </div>
+    <div class="mini-player-actions">
+      <button class="mini-btn-play" id="miniBtnPlayPause" title="播放 / 暫停">▶</button>
+      <button class="mini-btn-next" id="miniBtnNext" title="下一篇">⏭</button>
     </div>
   </div>
 

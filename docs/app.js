@@ -2,11 +2,12 @@
  * 麥麥睡前聽國文 (Miley Bedtime Classical Chinese Audio Player)
  * 核心應用邏輯與音訊引擎 - UI/UX 設計師高階版
  * 具備：
- * 1. 鎖定螢幕與背景播放 (Mobile Background / Screen-off Playback)
- * 2. 播完指定篇章自動停止 / 連播 N 篇排程 (Queue / Stop after target episode)
- * 3. 30 秒智慧平滑音量淡出 (Gentle Audio Fade-Out)
- * 4. 點詞浮動注釋氣泡 (Word Popover)
- * 5. OLED 純黑深邃護眼模式 (Night Shield)
+ * 1. 手機端專屬流暢排版與選集導航 (Mobile Segmented Tab Architecture)
+ * 2. 手機鎖定螢幕與背景播放 (Mobile Background / Screen-off Playback)
+ * 3. 播完指定篇章自動停止 / 連播 N 篇排程 (Queue / Stop after target episode)
+ * 4. 30 秒智慧平滑音量淡出 (Gentle Audio Fade-Out)
+ * 5. 點詞浮動注釋氣泡 (Word Popover)
+ * 6. OLED 純黑深邃護眼模式 (Night Shield)
  */
 
 (function () {
@@ -22,6 +23,7 @@
   let playbackRate = 1.0;
   let currentCategory = 'ALL';
   let fontSizeLevel = 0; // -1, 0, 1, 2, 3
+  let currentMobileTab = 'player'; // 'player', 'playlist', 'reading'
 
   // 睡眠定時器狀態 (時間倒數模式)
   let sleepTimer = {
@@ -46,7 +48,24 @@
   // DOM 元素快取
   // ==========================================
   const audio = document.getElementById('audioEngine');
+  const mainLayout = document.getElementById('mainLayout');
   const mainPlayerCard = document.getElementById('mainPlayerCard');
+  const mainPlaylistCard = document.getElementById('mainPlaylistCard');
+  const mainReadingPanel = document.getElementById('mainReadingPanel');
+
+  // Mobile navigation tabs
+  const mobileNavButtons = document.querySelectorAll('.mobile-nav-btn');
+  const btnMobileJumpPlaylist = document.getElementById('btnMobileJumpPlaylist');
+  const btnJumpPlaylistText = document.getElementById('btnJumpPlaylistText');
+  const mobileTabPlaylistCount = document.getElementById('mobileTabPlaylistCount');
+
+  // Mobile mini player
+  const mobileMiniPlayer = document.getElementById('mobileMiniPlayer');
+  const miniPlayerTitle = document.getElementById('miniPlayerTitle');
+  const miniPlayerSub = document.getElementById('miniPlayerSub');
+  const miniBtnPlayPause = document.getElementById('miniBtnPlayPause');
+  const miniBtnNext = document.getElementById('miniBtnNext');
+  const miniPlayerInfo = document.getElementById('miniPlayerInfo');
 
   // Player controls
   const btnPlayPause = document.getElementById('btnPlayPause');
@@ -138,6 +157,38 @@
   }
 
   // ==========================================
+  // 手機版活頁籤導航切換 (Mobile Tab Navigation)
+  // ==========================================
+  function switchMobileTab(tabName) {
+    currentMobileTab = tabName;
+    if (mainLayout) {
+      mainLayout.dataset.mobileTab = tabName;
+    }
+
+    mobileNavButtons.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === tabName);
+    });
+
+    // 迷你播放器浮動條狀態
+    updateMiniPlayerUI();
+
+    // 平滑滾動置頂，讓切換後的畫面完全展開
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function updateMiniPlayerUI() {
+    if (!mobileMiniPlayer) return;
+    const ep = filteredEpisodes[currentIndex];
+    if (ep) {
+      if (miniPlayerTitle) miniPlayerTitle.textContent = ep.short_title;
+      if (miniPlayerSub) miniPlayerSub.textContent = `${ep.dynasty} · ${ep.author}`;
+    }
+    if (miniBtnPlayPause) {
+      miniBtnPlayPause.textContent = isPlaying ? '⏸' : '▶';
+    }
+  }
+
+  // ==========================================
   // 播放器核心功能 (Audio Engine - 支援背景與鎖定螢幕連播)
   // ==========================================
   function selectEpisode(index, autoPlay = true) {
@@ -151,6 +202,9 @@
     playerTrackAuthor.textContent = `${ep.dynasty} · ${ep.author}`;
     playerCoverText.textContent = ep.short_title || '古文精選';
     playerCoverSub.textContent = ep.category.toUpperCase();
+
+    // 同步迷你播放器
+    updateMiniPlayerUI();
 
     // 更新右側圖文對照區
     renderReadingContent(ep);
@@ -184,6 +238,7 @@
       btnPlayPause.title = '暫停';
       mainPlayerCard.classList.add('is-playing');
       updatePlaylistActiveState();
+      updateMiniPlayerUI();
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'playing';
       }
@@ -192,6 +247,7 @@
       isPlaying = false;
       btnPlayPause.textContent = '▶';
       mainPlayerCard.classList.remove('is-playing');
+      updateMiniPlayerUI();
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'paused';
       }
@@ -205,6 +261,7 @@
     btnPlayPause.title = '播放';
     mainPlayerCard.classList.remove('is-playing');
     updatePlaylistActiveState();
+    updateMiniPlayerUI();
     if ('mediaSession' in navigator) {
       navigator.mediaSession.playbackState = 'paused';
     }
@@ -377,6 +434,13 @@
     playlistItemsContainer.innerHTML = '';
     playlistCount.textContent = `(共 ${filteredEpisodes.length} 篇)`;
 
+    if (mobileTabPlaylistCount) {
+      mobileTabPlaylistCount.textContent = filteredEpisodes.length;
+    }
+    if (btnJumpPlaylistText) {
+      btnJumpPlaylistText.textContent = `查看全部 ${filteredEpisodes.length} 篇選集清單`;
+    }
+
     filteredEpisodes.forEach((ep, index) => {
       const item = document.createElement('div');
       item.className = 'playlist-item';
@@ -409,7 +473,7 @@
         </div>
       `;
 
-      // 點擊清單切換播放
+      // 點擊清單項目切換播放
       item.addEventListener('click', (e) => {
         if (e.target.closest('.btn-set-stop-point')) return;
         selectEpisode(index, true);
@@ -463,7 +527,6 @@
   // 定篇停止與連播排程控制 (Stop Plan & Queue Engine)
   // ==========================================
   function setEpisodeLimit(count) {
-    // 清除既有的倒數計時器
     clearCountdownTimer();
 
     stopPlan = {
@@ -732,6 +795,41 @@
   // 事件監聽綁定 (Event Listeners)
   // ==========================================
   function setupEventListeners() {
+    // 手機版活頁籤按鈕切換
+    mobileNavButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        switchMobileTab(btn.dataset.tab);
+      });
+    });
+
+    // 手機版快速查看選集清單按鈕
+    if (btnMobileJumpPlaylist) {
+      btnMobileJumpPlaylist.addEventListener('click', () => {
+        switchMobileTab('playlist');
+      });
+    }
+
+    // 迷你播放器按鈕
+    if (miniBtnPlayPause) {
+      miniBtnPlayPause.addEventListener('click', (e) => {
+        e.stopPropagation();
+        togglePlayPause();
+      });
+    }
+
+    if (miniBtnNext) {
+      miniBtnNext.addEventListener('click', (e) => {
+        e.stopPropagation();
+        playNext();
+      });
+    }
+
+    if (miniPlayerInfo) {
+      miniPlayerInfo.addEventListener('click', () => {
+        switchMobileTab('player');
+      });
+    }
+
     // 播放器按鈕
     btnPlayPause.addEventListener('click', togglePlayPause);
     btnNext.addEventListener('click', playNext);
