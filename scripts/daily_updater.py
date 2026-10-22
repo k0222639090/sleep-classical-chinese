@@ -46,7 +46,7 @@ def build_spoken_script(ep):
     key_points = ep.get("key_points", "")
     
     script = []
-    script.append(f"睡前聽國文。今晚為您解讀的篇章是：{title}。")
+    script.append(f"麥麥睡前聽國文。今晚為您解讀的篇章是：{title}。")
     script.append("請放鬆心情，閉上雙眼。我們首先來聆聽原文。")
     script.append(f"【原文】：{original}")
     script.append("接下來，為您逐一梳理本篇的核心字詞與會考必備注釋。")

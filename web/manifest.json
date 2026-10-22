@@ -1,6 +1,6 @@
 {
-  "name": "國中會考文言文睡眠廣播",
-  "short_name": "睡前聽國文",
+  "name": "麥麥睡前聽國文",
+  "short_name": "麥麥睡前國文",
   "description": "專為國中會考學生睡前聆聽打造的文言文逐篇解讀與白話直譯系統",
   "start_url": "./?source=pwa",
   "scope": "./",

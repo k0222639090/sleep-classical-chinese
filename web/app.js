@@ -1,6 +1,12 @@
 /**
- * 國中會考文言文睡眠廣播 (Bedtime Classical Chinese Audio Player)
+ * 麥麥睡前聽國文 (Miley Bedtime Classical Chinese Audio Player)
  * 核心應用邏輯與音訊引擎 - UI/UX 設計師高階版
+ * 具備：
+ * 1. 鎖定螢幕與背景播放 (Mobile Background / Screen-off Playback)
+ * 2. 播完指定篇章自動停止 / 連播 N 篇排程 (Queue / Stop after target episode)
+ * 3. 30 秒智慧平滑音量淡出 (Gentle Audio Fade-Out)
+ * 4. 點詞浮動注釋氣泡 (Word Popover)
+ * 5. OLED 純黑深邃護眼模式 (Night Shield)
  */
 
 (function () {
@@ -17,14 +23,23 @@
   let currentCategory = 'ALL';
   let fontSizeLevel = 0; // -1, 0, 1, 2, 3
 
-  // 睡眠定時器狀態
+  // 睡眠定時器狀態 (時間倒數模式)
   let sleepTimer = {
-    mode: null,          // null, 'end_of_track', or 'countdown'
+    mode: null,          // null, 'countdown'
     totalSeconds: 0,
     remainingSeconds: 0,
     intervalId: null,
     baseVolume: 1.0,
     fadeDuration: 30     // 最後 30 秒平滑淡出音量
+  };
+
+  // 定篇停止與連播排程狀態 (篇數 / 指定篇終點模式)
+  let stopPlan = {
+    type: null,          // null, 'episodes_count', 'target_episode_id'
+    targetEpisodeId: null,
+    targetEpisodeTitle: '',
+    initialEpisodesCount: 0,
+    remainingEpisodes: 0
   };
 
   // ==========================================
@@ -48,12 +63,17 @@
   const timeCurrent = document.getElementById('timeCurrent');
   const timeDuration = document.getElementById('timeDuration');
 
-  // Player headers
+  // Player headers & cover
   const playerTrackTitle = document.getElementById('playerTrackTitle');
   const playerTrackCategory = document.getElementById('playerTrackCategory');
   const playerTrackAuthor = document.getElementById('playerTrackAuthor');
   const playerCoverText = document.getElementById('playerCoverText');
   const playerCoverSub = document.getElementById('playerCoverSub');
+
+  // Queue plan alert
+  const queuePlanAlert = document.getElementById('queuePlanAlert');
+  const queuePlanText = document.getElementById('queuePlanText');
+  const btnCancelQueuePlan = document.getElementById('btnCancelQueuePlan');
 
   // Playlist
   const playlistItemsContainer = document.getElementById('playlistItems');
@@ -82,7 +102,8 @@
   const sleepTimerModal = document.getElementById('sleepTimerModal');
   const btnCloseSleepTimer = document.getElementById('btnCloseSleepTimer');
   const sleepTimerBadgeText = document.getElementById('sleepTimerBadgeText');
-  const timerOptionButtons = document.querySelectorAll('.timer-opt-btn');
+  const timerOptionButtons = document.querySelectorAll('.timer-opt-btn:not(.ep-opt-btn)');
+  const episodeOptionButtons = document.querySelectorAll('.ep-opt-btn');
 
   // OLED Night Mode
   const btnToggleOled = document.getElementById('btnToggleOled');
@@ -117,7 +138,7 @@
   }
 
   // ==========================================
-  // 播放器核心功能 (Audio Engine - 低記憶體網路串流架構)
+  // 播放器核心功能 (Audio Engine - 支援背景與鎖定螢幕連播)
   // ==========================================
   function selectEpisode(index, autoPlay = true) {
     if (index < 0 || index >= filteredEpisodes.length) return;
@@ -134,12 +155,7 @@
     // 更新右側圖文對照區
     renderReadingContent(ep);
 
-    // 釋放先前可能佔用的音訊緩衝區，極大化減少記憶體佔用
-    audio.pause();
-    audio.removeAttribute('src');
-    audio.load();
-
-    // 重新指向網路音訊直鏈 (純連網串流，不佔據本機過多 RAM)
+    // 關鍵：直接設定同一個 audio 實例的 src，保留 iOS/Android 鎖定螢幕後背景連播權限
     audio.src = ep.audio_src;
     audio.playbackRate = playbackRate;
     audio.currentTime = 0;
@@ -148,8 +164,11 @@
     // 更新清單高亮
     updatePlaylistActiveState();
 
-    // 更新 MediaSession (支援手機鎖定畫面控制)
+    // 更新 MediaSession (鎖定螢幕專輯封面、作者與控制按鈕)
     updateMediaSession(ep);
+
+    // 檢查篇數連播狀態更新
+    updateQueuePlanDisplay();
 
     if (autoPlay) {
       playAudio();
@@ -165,11 +184,17 @@
       btnPlayPause.title = '暫停';
       mainPlayerCard.classList.add('is-playing');
       updatePlaylistActiveState();
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'playing';
+      }
     }).catch(err => {
       console.warn('自動播放被瀏覽器阻擋，需使用者互動點擊:', err);
       isPlaying = false;
       btnPlayPause.textContent = '▶';
       mainPlayerCard.classList.remove('is-playing');
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'paused';
+      }
     });
   }
 
@@ -180,6 +205,9 @@
     btnPlayPause.title = '播放';
     mainPlayerCard.classList.remove('is-playing');
     updatePlaylistActiveState();
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'paused';
+    }
   }
 
   function togglePlayPause() {
@@ -226,6 +254,17 @@
     const percentage = duration > 0 ? (current / duration) * 100 : 0;
     progressFill.style.width = percentage + '%';
     progressThumb.style.left = percentage + '%';
+
+    // 同步鎖定畫面進度
+    if ('mediaSession' in navigator && duration && duration > 0 && typeof navigator.mediaSession.setPositionState === 'function') {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: duration,
+          playbackRate: audio.playbackRate,
+          position: Math.min(current, duration)
+        });
+      } catch (e) {}
+    }
   }
 
   function formatTime(seconds) {
@@ -258,88 +297,81 @@
     let processedText = ep.original_text;
     if (ep.annotations && ep.annotations.length > 0) {
       ep.annotations.forEach((ann, i) => {
-        const cleanTerm = ann.term.replace(/\*/g, '');
-        const regex = new RegExp(`(${cleanTerm})`, 'g');
-        processedText = processedText.replace(regex, `<span class="kw-term" data-vocab-idx="${i}" title="點擊查看釋義">$1</span>`);
+        const rawTerm = ann.term.trim();
+        const cleanTerm = rawTerm.split(/[（(]/)[0].replace(/[*_~`]/g, '');
+        if (cleanTerm && cleanTerm.length > 0) {
+          const escaped = cleanTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(`(${escaped})`, 'g');
+          processedText = processedText.replace(regex, `<span class="kw-term" data-idx="${i}">$1</span>`);
+        }
       });
     }
-    readingOriginalText.innerHTML = processedText;
 
-    // 關鍵字詞注釋卡片網格
+    readingOriginalText.innerHTML = processedText.replace(/\n/g, '<br><br>');
+
+    // 綁定注釋點擊彈窗
+    readingOriginalText.querySelectorAll('.kw-term').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(el.dataset.idx, 10);
+        showWordPopover(el, ep.annotations[idx]);
+      });
+    });
+
+    // 關鍵注釋清單
     readingVocabGrid.innerHTML = '';
     if (ep.annotations && ep.annotations.length > 0) {
-      ep.annotations.forEach((ann, i) => {
+      ep.annotations.forEach(item => {
         const card = document.createElement('div');
-        card.className = 'vocab-card';
-        card.id = `vocab-card-${i}`;
+        card.className = 'vocab-item';
         card.innerHTML = `
-          <div class="vocab-term-row">
-            <span class="vocab-term">${ann.term}</span>
-          </div>
-          <div class="vocab-note">${ann.note}</div>
+          <div class="vocab-term">${item.term}</div>
+          <div class="vocab-note">${item.note}</div>
         `;
         readingVocabGrid.appendChild(card);
       });
     } else {
-      readingVocabGrid.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem;">本篇注釋已融入直譯說明中。</p>';
+      readingVocabGrid.innerHTML = '<div style="color: var(--text-muted); font-size: 0.88rem;">本篇字句易懂，無特殊生難字詞。</div>';
     }
-
-    // 原文點擊字詞：彈出即時注釋氣泡 (Word Popover)
-    readingOriginalText.querySelectorAll('.kw-term').forEach(el => {
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const idx = el.getAttribute('data-vocab-idx');
-        const ann = ep.annotations[idx];
-        if (!ann) return;
-
-        showWordPopover(el, ann.term, ann.note, idx);
-      });
-    });
 
     // 白話文直譯
-    readingTranslationText.textContent = ep.translation;
+    readingTranslationText.textContent = ep.translation || '（暫無直譯）';
 
-    // 會考核心素養
-    readingExamPointsText.textContent = ep.key_points || '深化文言實詞與古今異義辨析，把握人物言行與儒道精神涵養。';
+    // 會考素養核心寓意
+    readingExamPointsText.textContent = ep.key_points || '（暫無素養提要）';
   }
 
-  // 浮動注釋氣泡邏輯
-  function showWordPopover(targetEl, term, note, idx) {
-    popoverTerm.textContent = term;
-    popoverNote.innerHTML = note + `<br><a href="#vocab-card-${idx}" style="color: var(--accent-gold); font-size: 0.75rem; text-decoration: underline; margin-top: 4px; display: inline-block;">查看下方詳細考點 ➜</a>`;
+  function showWordPopover(targetEl, annData) {
+    if (!annData) return;
+    popoverTerm.textContent = annData.term;
+    popoverNote.textContent = annData.note;
 
-    const boxRect = originalBoxContainer.getBoundingClientRect();
-    const elRect = targetEl.getBoundingClientRect();
+    const rect = targetEl.getBoundingClientRect();
+    const containerRect = originalBoxContainer.getBoundingClientRect();
 
-    let top = elRect.bottom - boxRect.top + 8;
-    let left = elRect.left - boxRect.left;
+    const top = rect.bottom - containerRect.top + 8;
+    let left = rect.left - containerRect.left + (rect.width / 2) - 130;
 
-    // 邊界防溢出處理
-    if (left + 280 > boxRect.width) {
-      left = Math.max(10, boxRect.width - 290);
-    }
+    if (left < 10) left = 10;
+    if (left + 260 > containerRect.width) left = containerRect.width - 270;
 
-    wordPopover.style.top = `${top}px`;
-    wordPopover.style.left = `${left}px`;
-    wordPopover.classList.add('show');
+    wordPopover.style.top = top + 'px';
+    wordPopover.style.left = left + 'px';
+    wordPopover.classList.add('visible');
   }
 
   function hideWordPopover() {
-    if (wordPopover) {
-      wordPopover.classList.remove('show');
-    }
+    wordPopover.classList.remove('visible');
   }
 
-  // 字體放大縮小
   function adjustFontSize(delta) {
     fontSizeLevel = Math.max(-1, Math.min(3, fontSizeLevel + delta));
-    const fontSizes = ['1.05rem', '1.25rem', '1.45rem', '1.65rem', '1.85rem'];
-    readingOriginalText.style.fontSize = fontSizes[fontSizeLevel + 1];
-    readingTranslationText.style.fontSize = `calc(${fontSizes[fontSizeLevel + 1]} - 0.2rem)`;
+    const sizes = ['0.95rem', '1.08rem', '1.22rem', '1.38rem', '1.55rem'];
+    readingOriginalText.style.fontSize = sizes[fontSizeLevel + 1];
   }
 
   // ==========================================
-  // 播放清單與分類篩選 (Playlist System)
+  // 播放清單渲染 (Playlist Items with Stop Target Buttons)
   // ==========================================
   function renderPlaylist() {
     playlistItemsContainer.innerHTML = '';
@@ -351,6 +383,8 @@
       if (index === currentIndex) item.classList.add('active');
 
       const isToday = index === 0;
+      const isStopTarget = stopPlan.type === 'target_episode_id' && ep.id === stopPlan.targetEpisodeId;
+      if (isStopTarget) item.classList.add('is-stop-target');
 
       item.innerHTML = `
         <div class="item-left">
@@ -363,15 +397,29 @@
             <span class="item-sub">${ep.category}</span>
           </div>
         </div>
-        <div class="item-playing-indicator">
-          <div class="bar"></div>
-          <div class="bar"></div>
-          <div class="bar"></div>
+        <div class="item-right-actions">
+          <button class="btn-set-stop-point" data-id="${ep.id}" data-title="${ep.short_title}" title="設定播完此篇後自動休眠停止">
+            ${isStopTarget ? '🛑 播完此篇停' : '🛑 設為終點'}
+          </button>
+          <div class="item-playing-indicator">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+          </div>
         </div>
       `;
 
-      item.addEventListener('click', () => {
+      // 點擊清單切換播放
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-set-stop-point')) return;
         selectEpisode(index, true);
+      });
+
+      // 點擊「設為終點」按鈕
+      const stopBtn = item.querySelector('.btn-set-stop-point');
+      stopBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleStopTargetEpisode(ep.id, ep.short_title);
       });
 
       playlistItemsContainer.appendChild(item);
@@ -384,6 +432,16 @@
       const isActive = index === currentIndex;
       item.classList.toggle('active', isActive);
       item.classList.toggle('is-playing', isActive && isPlaying);
+
+      const ep = filteredEpisodes[index];
+      if (ep) {
+        const isStopTarget = stopPlan.type === 'target_episode_id' && ep.id === stopPlan.targetEpisodeId;
+        item.classList.toggle('is-stop-target', isStopTarget);
+        const stopBtn = item.querySelector('.btn-set-stop-point');
+        if (stopBtn) {
+          stopBtn.textContent = isStopTarget ? '🛑 播完此篇停' : '🛑 設為終點';
+        }
+      }
     });
   }
 
@@ -402,39 +460,112 @@
   }
 
   // ==========================================
-  // 智慧睡眠定時器 (Sleep Timer with 30s Gentle Fade-Out)
+  // 定篇停止與連播排程控制 (Stop Plan & Queue Engine)
   // ==========================================
-  function setSleepTimer(minutes) {
-    clearInterval(sleepTimer.intervalId);
-    sleepTimer.intervalId = null;
-    audio.volume = sleepTimer.baseVolume;
+  function setEpisodeLimit(count) {
+    // 清除既有的倒數計時器
+    clearCountdownTimer();
 
-    if (minutes === 'off') {
-      sleepTimer.mode = null;
-      sleepTimerBadgeText.textContent = '睡眠定時: 關閉';
-      btnOpenSleepTimer.classList.remove('active');
-      timerOptionButtons.forEach(b => b.classList.toggle('active', b.dataset.minutes === 'off'));
-      closeModal();
+    stopPlan = {
+      type: 'episodes_count',
+      targetEpisodeId: null,
+      targetEpisodeTitle: '',
+      initialEpisodesCount: count,
+      remainingEpisodes: count
+    };
+
+    episodeOptionButtons.forEach(btn => {
+      btn.classList.toggle('active', parseInt(btn.dataset.episodes, 10) === count);
+    });
+    timerOptionButtons.forEach(btn => btn.classList.remove('active'));
+
+    updateQueuePlanDisplay();
+    closeModal();
+  }
+
+  function toggleStopTargetEpisode(epId, epTitle) {
+    clearCountdownTimer();
+
+    if (stopPlan.type === 'target_episode_id' && stopPlan.targetEpisodeId === epId) {
+      // 取消終點設定
+      clearAllStopPlans();
       return;
     }
 
-    if (minutes === 'end_of_track') {
-      sleepTimer.mode = 'end_of_track';
-      sleepTimerBadgeText.textContent = '⏱️ 本篇播完即停';
+    stopPlan = {
+      type: 'target_episode_id',
+      targetEpisodeId: epId,
+      targetEpisodeTitle: epTitle,
+      initialEpisodesCount: 0,
+      remainingEpisodes: 0
+    };
+
+    updateQueuePlanDisplay();
+    updatePlaylistActiveState();
+  }
+
+  function updateQueuePlanDisplay() {
+    if (stopPlan.type === 'episodes_count') {
+      queuePlanAlert.style.display = 'flex';
+      const curEpNum = stopPlan.initialEpisodesCount - stopPlan.remainingEpisodes + 1;
+      queuePlanText.textContent = `🌙 連播計畫：聽 ${stopPlan.initialEpisodesCount} 篇即停 (目前正播第 ${curEpNum}/${stopPlan.initialEpisodesCount} 篇)`;
+      sleepTimerBadgeText.textContent = `⏱️ 聽 ${stopPlan.initialEpisodesCount} 篇即停 (${stopPlan.remainingEpisodes}篇剩餘)`;
       btnOpenSleepTimer.classList.add('active');
-      timerOptionButtons.forEach(b => b.classList.toggle('active', b.dataset.minutes === 'end_of_track'));
+    } else if (stopPlan.type === 'target_episode_id') {
+      queuePlanAlert.style.display = 'flex';
+      queuePlanText.textContent = `🌙 終點計畫：播完《${stopPlan.targetEpisodeTitle}》後自動休眠停止`;
+      sleepTimerBadgeText.textContent = `⏱️ 播完《${stopPlan.targetEpisodeTitle}》停`;
+      btnOpenSleepTimer.classList.add('active');
+    } else if (sleepTimer.mode === 'countdown') {
+      queuePlanAlert.style.display = 'none';
+      btnOpenSleepTimer.classList.add('active');
+    } else {
+      queuePlanAlert.style.display = 'none';
+      sleepTimerBadgeText.textContent = '睡眠關閉: 自由連播';
+      btnOpenSleepTimer.classList.remove('active');
+    }
+  }
+
+  function clearAllStopPlans() {
+    clearCountdownTimer();
+    stopPlan = {
+      type: null,
+      targetEpisodeId: null,
+      targetEpisodeTitle: '',
+      initialEpisodesCount: 0,
+      remainingEpisodes: 0
+    };
+    episodeOptionButtons.forEach(btn => btn.classList.remove('active'));
+    timerOptionButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.minutes === 'off'));
+    updateQueuePlanDisplay();
+    updatePlaylistActiveState();
+  }
+
+  // ==========================================
+  // 時間倒數定時器 (Sleep Timer with 30s Gentle Fade-Out)
+  // ==========================================
+  function setCountdownTimer(minutes) {
+    if (minutes === 'off') {
+      clearAllStopPlans();
       closeModal();
       return;
     }
+
+    clearCountdownTimer();
+    // 清除篇數排程，切換為時間倒數
+    stopPlan.type = null;
+    stopPlan.targetEpisodeId = null;
 
     const mins = parseInt(minutes, 10);
     sleepTimer.mode = 'countdown';
     sleepTimer.totalSeconds = mins * 60;
     sleepTimer.remainingSeconds = mins * 60;
+
     btnOpenSleepTimer.classList.add('active');
     timerOptionButtons.forEach(b => b.classList.toggle('active', parseInt(b.dataset.minutes, 10) === mins));
+    episodeOptionButtons.forEach(b => b.classList.remove('active'));
 
-    updateTimerDisplay();
+    updateCountdownDisplay();
 
     sleepTimer.intervalId = setInterval(() => {
       sleepTimer.remainingSeconds--;
@@ -447,23 +578,51 @@
 
       if (sleepTimer.remainingSeconds <= 0) {
         clearInterval(sleepTimer.intervalId);
-        pauseAudio();
-        audio.volume = sleepTimer.baseVolume;
-        sleepTimer.mode = null;
-        sleepTimerBadgeText.textContent = '睡眠定時: 已關閉';
-        btnOpenSleepTimer.classList.remove('active');
+        executeGentleSleepStop('定時已到，今夜陪伴到此，祝您安然入睡 🌙');
       } else {
-        updateTimerDisplay();
+        updateCountdownDisplay();
       }
     }, 1000);
 
     closeModal();
   }
 
-  function updateTimerDisplay() {
+  function clearCountdownTimer() {
+    if (sleepTimer.intervalId) {
+      clearInterval(sleepTimer.intervalId);
+      sleepTimer.intervalId = null;
+    }
+    sleepTimer.mode = null;
+    audio.volume = sleepTimer.baseVolume;
+  }
+
+  function updateCountdownDisplay() {
     const m = Math.floor(sleepTimer.remainingSeconds / 60);
     const s = sleepTimer.remainingSeconds % 60;
     sleepTimerBadgeText.textContent = `⏱️ ${m}:${s.toString().padStart(2, '0')} 後休眠`;
+  }
+
+  // 溫柔停止並恢復音量
+  function executeGentleSleepStop(noticeMsg) {
+    let fadeStep = 10;
+    const fadeInterval = setInterval(() => {
+      fadeStep--;
+      if (fadeStep <= 0) {
+        clearInterval(fadeInterval);
+        pauseAudio();
+        audio.volume = sleepTimer.baseVolume;
+        clearAllStopPlans();
+        if (noticeMsg) {
+          queuePlanAlert.style.display = 'flex';
+          queuePlanText.textContent = `✨ ${noticeMsg}`;
+          setTimeout(() => {
+            queuePlanAlert.style.display = 'none';
+          }, 8000);
+        }
+      } else {
+        audio.volume = Math.max(0, sleepTimer.baseVolume * (fadeStep / 10));
+      }
+    }, 150);
   }
 
   function openModal() {
@@ -504,17 +663,20 @@
   }
 
   // ==========================================
-  // MediaSession API (鎖定螢幕與通知控制)
+  // MediaSession API (手機鎖定螢幕與背景播放支援)
   // ==========================================
   function updateMediaSession(ep) {
     if ('mediaSession' in navigator) {
+      const coverUrl = new URL('assets/cover.png', window.location.href).href;
+      const iconUrl = new URL('assets/icon-512.png', window.location.href).href;
+
       navigator.mediaSession.metadata = new MediaMetadata({
         title: ep.title,
-        artist: '睡前聽國文 · ' + ep.dynasty + ' ' + ep.author,
-        album: ep.category,
+        artist: '麥麥睡前聽國文',
+        album: `${ep.dynasty} · ${ep.author} (${ep.category})`,
         artwork: [
-          { src: 'assets/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'assets/icon-512.png', sizes: '512x512', type: 'image/png' }
+          { src: coverUrl, sizes: '512x512', type: 'image/png' },
+          { src: iconUrl, sizes: '512x512', type: 'image/png' }
         ]
       });
 
@@ -524,6 +686,12 @@
       navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
       navigator.mediaSession.setActionHandler('seekbackward', () => rewind15());
       navigator.mediaSession.setActionHandler('seekforward', () => forward15());
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (details.seekTime !== undefined && details.seekTime !== null) {
+          audio.currentTime = details.seekTime;
+          updateProgressUI(audio.currentTime, audio.duration);
+        }
+      });
     }
   }
 
@@ -571,6 +739,9 @@
     btnRewind.addEventListener('click', rewind15);
     btnForward.addEventListener('click', forward15);
 
+    // 取消排程按鈕
+    btnCancelQueuePlan.addEventListener('click', clearAllStopPlans);
+
     // 倍速切換
     speedButtons.forEach(btn => {
       btn.addEventListener('click', () => setPlaybackSpeed(btn.dataset.speed));
@@ -585,15 +756,31 @@
       updateProgressUI(audio.currentTime, audio.duration);
     });
 
+    // 關鍵：一首播畢時的排程判定與自動切換
     audio.addEventListener('ended', () => {
-      if (sleepTimer.mode === 'end_of_track') {
-        pauseAudio();
-        sleepTimer.mode = null;
-        sleepTimerBadgeText.textContent = '睡眠定時: 已關閉';
-        btnOpenSleepTimer.classList.remove('active');
-      } else {
-        playNext();
+      const currentEp = filteredEpisodes[currentIndex];
+
+      // 情況 1：已設定為特定篇章為終點
+      if (stopPlan.type === 'target_episode_id' && currentEp && currentEp.id === stopPlan.targetEpisodeId) {
+        executeGentleSleepStop(`《${stopPlan.targetEpisodeTitle}》已播畢，祝您好夢 🌙`);
+        return;
       }
+
+      // 情況 2：已設定連播 N 篇
+      if (stopPlan.type === 'episodes_count') {
+        stopPlan.remainingEpisodes--;
+        if (stopPlan.remainingEpisodes <= 0) {
+          executeGentleSleepStop('今夜排定之文言文篇章已全數播畢，祝您好夢 🌙');
+          return;
+        } else {
+          updateQueuePlanDisplay();
+          playNext();
+          return;
+        }
+      }
+
+      // 情況 3：一般自由連播
+      playNext();
     });
 
     // 點擊頁面其他地方關閉注釋氣泡
@@ -620,15 +807,26 @@
     btnFontInc.addEventListener('click', () => adjustFontSize(1));
     btnFontDec.addEventListener('click', () => adjustFontSize(-1));
 
-    // 定時器彈窗
+    // 定時器與篇數設定彈窗
     btnOpenSleepTimer.addEventListener('click', openModal);
     btnCloseSleepTimer.addEventListener('click', closeModal);
     sleepTimerModal.addEventListener('click', (e) => {
       if (e.target === sleepTimerModal) closeModal();
     });
 
+    // 篇數選項按鈕
+    episodeOptionButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const count = parseInt(btn.dataset.episodes, 10);
+        setEpisodeLimit(count);
+      });
+    });
+
+    // 時間倒數選項按鈕
     timerOptionButtons.forEach(btn => {
-      btn.addEventListener('click', () => setSleepTimer(btn.dataset.minutes));
+      btn.addEventListener('click', () => {
+        setCountdownTimer(btn.dataset.minutes);
+      });
     });
 
     // OLED 模式
