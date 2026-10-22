@@ -25,11 +25,14 @@ import edge_tts
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 WEB_DIR = BASE_DIR / "web"
+DOCS_DIR = BASE_DIR / "docs"
 AUDIO_DIR = BASE_DIR / "audio"
 WEB_AUDIO_DIR = WEB_DIR / "audio"
+DOCS_AUDIO_DIR = DOCS_DIR / "audio"
 
 UPCOMING_FILE = DATA_DIR / "upcoming_corpus.json"
 EPISODES_JSON = WEB_DIR / "episodes.json"
+DOCS_EPISODES_JSON = DOCS_DIR / "episodes.json"
 DATA_EPISODES_JSON = DATA_DIR / "episodes.json"
 
 VOICE_FEMALE = "zh-TW-HsiaoChenNeural"
@@ -126,6 +129,7 @@ async def run_daily_update():
     audio_filename = f"{ep_id}.mp3"
     target_path_1 = AUDIO_DIR / audio_filename
     target_path_2 = WEB_AUDIO_DIR / audio_filename
+    target_path_3 = DOCS_AUDIO_DIR / audio_filename
     
     # 設定音檔網址
     target_ep["audio_src"] = f"audio/{audio_filename}"
@@ -133,14 +137,19 @@ async def run_daily_update():
     
     # 執行音訊合成
     await synthesize_audio(target_ep, target_path_1, target_path_2)
+    import shutil
+    shutil.copyfile(target_path_1, target_path_3)
     
     # 加入已發布清單
     published_eps.append(target_ep)
     published_data["total_episodes"] = len(published_eps)
     published_data["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    # 寫入 web/episodes.json 與 data/episodes.json
+    # 寫入 web/episodes.json, docs/episodes.json 與 data/episodes.json
     with open(EPISODES_JSON, "w", encoding="utf-8") as f:
+        json.dump(published_data, f, ensure_ascii=False, indent=2)
+        
+    with open(DOCS_EPISODES_JSON, "w", encoding="utf-8") as f:
         json.dump(published_data, f, ensure_ascii=False, indent=2)
         
     with open(DATA_EPISODES_JSON, "w", encoding="utf-8") as f:
