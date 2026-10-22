@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>國中會考文言文睡眠廣播 | 每日雲端更新 · 逐篇白話直譯</title>
+  <meta name="description" content="專為國中會考學生設計的文言文睡前聆聽平台，每日雲端定時自動上新一篇，逐篇客觀解讀世說新語與先秦諸子原文、字詞釋義與白話文直譯，具備睡眠定時器與夜間護眼模式。">
+  
+  <!-- PWA Manifest & Web App Meta -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#070b14">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="睡前聽國文">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
+
+  <!-- 引入 Google Fonts (古典襯線思源宋體 + 現代清晰無襯線字體) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- LINE 內嵌防呆與 Standalone 即刻判定腳本 -->
+  <script>
+    (function() {
+      try {
+        var ua = (navigator.userAgent || '').toLowerCase();
+        if (ua.indexOf('line') > -1 && window.location.search.indexOf('openExternalBrowser=1') === -1) {
+          var sep = window.location.href.indexOf('?') > -1 ? '&' : '?';
+          window.location.href = window.location.href + sep + 'openExternalBrowser=1';
+        }
+        var isPWA = (window.matchMedia && (
+                        window.matchMedia('(display-mode: standalone)').matches ||
+                        window.matchMedia('(display-mode: fullscreen)').matches ||
+                        window.matchMedia('(display-mode: minimal-ui)').matches
+                    )) ||
+                    window.navigator.standalone === true ||
+                    window.location.search.indexOf('source=pwa') !== -1 ||
+                    localStorage.getItem('sleep_classics_pwa_installed') === 'true';
+
+        if (isPWA) {
+          document.documentElement.classList.add('is-pwa-standalone');
+        }
+      } catch (e) {}
+
+      // Service Worker 註冊與更新
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('sw.js?v=101').then(function(reg) {
+            if (typeof reg.update === 'function') reg.update();
+          }).catch(function(err) {
+            console.warn('SW register error:', err);
+          });
+        });
+      }
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- 助眠星空背景微光 -->
+  <div class="ambient-stars" id="ambientStars"></div>
+
+  <!-- 主容器 -->
+  <div class="app-container">
+    
+    <!-- 雲端排程自動更新狀態橫幅 -->
+    <div class="cloud-status-banner">
+      <div class="cloud-status-left">
+        <span class="pulse-dot"></span>
+        <span id="cloudStatusText">☁️ 雲端 24/7 自動排程中 · 電腦關機亦可於每夜 22:00 自動上新一篇</span>
+      </div>
+      <div class="cloud-status-right" id="cloudBufferText">
+        未來 10+ 天儲備庫充足
+      </div>
+    </div>
+
+    <!-- 頂部 Header -->
+    <header class="header-bar">
+      <div class="brand-wrapper">
+        <div class="brand-icon">🌙</div>
+        <div>
+          <h1 class="brand-title">
+            睡前聽國文
+            <span class="brand-badge">每日雲端上新</span>
+          </h1>
+          <p class="brand-subtitle">國中文言文精細解說廣播 · 原文 · 點讀注釋 · 白話直譯</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- OLED 純黑護眼模式切換 -->
+        <button class="btn-action" id="btnToggleOled" title="開啟/關閉極致護眼睡眠模式（零藍光深邃黑）">
+          <span id="oledIcon">🕯️</span>
+          <span id="oledText">助眠護眼</span>
+        </button>
+
+        <!-- PWA 安裝按鈕 -->
+        <button class="btn-action" id="btnInstallPwa" onclick="triggerPWAInstall()" title="安裝為手機/桌面 App">
+          <span>📲</span>
+          <span>安裝 App</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 主版面 Layout -->
+    <main class="main-layout">
+
+      <!-- 左側欄：核心播放器與篇章清單 -->
+      <section class="left-panel">
+        
+        <!-- 播放器卡片 -->
+        <div class="player-card" id="mainPlayerCard">
+          <!-- 封面卡片 -->
+          <div class="track-art-box">
+            <div class="track-art-halo"></div>
+            <div class="track-art-chinese" id="playerCoverText">世說新語</div>
+            <div class="track-art-sub" id="playerCoverSub">CLASSICAL BROADCAST</div>
+          </div>
+
+          <!-- 音訊頻譜波形動畫 -->
+          <div class="live-visualizer-bar" id="liveVisualizer">
+            <div class="viz-stick"></div>
+            <div class="viz-stick"></div>
+            <div class="viz-stick"></div>
+            <div class="viz-stick"></div>
+            <div class="viz-stick"></div>
+          </div>
+
+          <!-- 曲目名稱與出處 -->
+          <div class="track-info-header">
+            <h2 class="track-current-title" id="playerTrackTitle">載入中...</h2>
+            <div class="track-current-meta">
+              <span id="playerTrackCategory">國中會考文言文</span>
+              <span>·</span>
+              <span id="playerTrackAuthor">經典解讀</span>
+            </div>
+          </div>
+
+          <!-- 進度條 -->
+          <div class="progress-container">
+            <div class="progress-slider-wrapper" id="progressWrapper">
+              <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+              </div>
+              <div class="progress-thumb" id="progressThumb"></div>
+            </div>
+            <div class="progress-time-row">
+              <span id="timeCurrent">00:00</span>
+              <span id="timeDuration">--:--</span>
+            </div>
+          </div>
+
+          <!-- 播放控制按鈕 -->
+          <div class="player-controls-row">
+            <!-- 上一首 -->
+            <button class="ctrl-btn" id="btnPrev" title="上一篇章">⏮</button>
+            <!-- 快退 15 秒 -->
+            <button class="ctrl-btn" id="btnRewind" title="倒退 15 秒">↺ 15</button>
+            <!-- 播放 / 暫停 -->
+            <button class="ctrl-btn btn-play-pause" id="btnPlayPause" title="播放 / 暫停">▶</button>
+            <!-- 快進 15 秒 -->
+            <button class="ctrl-btn" id="btnForward" title="前進 15 秒">15 ↻</button>
+            <!-- 下一首 -->
+            <button class="ctrl-btn" id="btnNext" title="下一篇章">⏭</button>
+          </div>
+
+          <!-- 輔助設定列：睡眠定時器與倍速切換 -->
+          <div class="player-aux-bar">
+            <!-- 睡眠定時器按鈕 -->
+            <button class="timer-chip" id="btnOpenSleepTimer" title="設定睡眠自動關閉定時器">
+              <span>⏱️</span>
+              <span id="sleepTimerBadgeText">睡眠定時: 關閉</span>
+            </button>
+
+            <!-- 倍速切換 -->
+            <div class="speed-selector-group">
+              <button class="speed-btn" data-speed="0.8">0.8x 舒緩</button>
+              <button class="speed-btn active" data-speed="1.0">1.0x</button>
+              <button class="speed-btn" data-speed="1.2">1.2x</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 播放清單卡片 -->
+        <div class="playlist-card">
+          <div class="playlist-header">
+            <h3 class="playlist-title">
+              <span>📖</span>
+              <span>選集清單</span>
+              <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 400;" id="playlistCount"></span>
+            </h3>
+          </div>
+
+          <!-- 分類標籤切換 -->
+          <div class="category-tabs" id="categoryTabs">
+            <button class="cat-tab active" data-category="ALL">全部篇章</button>
+            <button class="cat-tab" data-category="世說新語名士特輯">世說新語</button>
+            <button class="cat-tab" data-category="諸子哲理與寓言特輯">先秦諸子</button>
+            <button class="cat-tab" data-category="史記與經典散文特輯">史記散文</button>
+          </div>
+
+          <!-- 清單內容列表 -->
+          <div class="playlist-items" id="playlistItems">
+            <!-- 由 JavaScript 動態渲染 -->
+          </div>
+        </div>
+
+      </section>
+
+      <!-- 右側欄：文言文圖文對照與逐篇解析區 -->
+      <section class="right-panel">
+        
+        <article class="reading-card">
+          <!-- 閱讀工具列 -->
+          <div class="reading-toolbar">
+            <div class="reading-title-group">
+              <h2 class="reading-chapter-title" id="readingChapterTitle">王羲之坦腹東床</h2>
+              <div class="reading-chapter-meta">
+                <span id="readingChapterSource">《世說新語·雅量》</span>
+                <span>·</span>
+                <span id="readingChapterAuthor">劉義慶 主編</span>
+              </div>
+            </div>
+
+            <!-- 字體縮放按鈕 -->
+            <div class="font-size-controls">
+              <button class="btn-font" id="btnFontDec" title="縮小字體">A-</button>
+              <button class="btn-font" id="btnFontInc" title="放大字體">A+</button>
+            </div>
+          </div>
+
+          <!-- 內容區 1：原文 (古典大字排版 + 點詞即時浮動注釋) -->
+          <div class="section-block">
+            <div class="section-label">
+              <span>📜</span>
+              <span>【原文】</span>
+              <small style="font-size: 0.74rem; color: var(--text-muted); margin-left: 6px; font-weight: normal;">(點擊黃色字詞可直接查看氣泡注釋)</small>
+            </div>
+            <div class="original-box" id="originalBoxContainer">
+              <p class="original-text-content" id="readingOriginalText">
+                載入原文中...
+              </p>
+              <!-- 懸浮注釋氣泡 -->
+              <div class="word-popover" id="wordPopover">
+                <div class="popover-term" id="popoverTerm">詞彙</div>
+                <div class="popover-note" id="popoverNote">釋義載入中...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 內容區 2：關鍵字詞注釋 (卡片網格) -->
+          <div class="section-block">
+            <div class="section-label">
+              <span>🔍</span>
+              <span>【關鍵字詞注釋】</span>
+            </div>
+            <div class="vocab-grid" id="readingVocabGrid">
+              <!-- 由 JavaScript 動態生成注釋卡片 -->
+            </div>
+          </div>
+
+          <!-- 內容區 3：白話文直譯 -->
+          <div class="section-block">
+            <div class="section-label">
+              <span>✍️</span>
+              <span>【白話文直譯】</span>
+            </div>
+            <div class="translation-box">
+              <p class="translation-text" id="readingTranslationText">
+                載入直譯中...
+              </p>
+            </div>
+          </div>
+
+          <!-- 內容區 4：會考素養提要與核心寓意 -->
+          <div class="section-block">
+            <div class="section-label">
+              <span>💡</span>
+              <span>【會考素養提要與核心寓意】</span>
+            </div>
+            <div class="exam-points-box">
+              <p class="exam-points-text" id="readingExamPointsText">
+                載入會考要點中...
+              </p>
+            </div>
+          </div>
+
+        </article>
+
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- 睡眠定時器彈窗 (Sleep Timer Modal) -->
+  <div class="modal-overlay" id="sleepTimerModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <span>🌙</span>
+          <span>睡眠關閉定時器</span>
+        </h3>
+        <button class="modal-close" id="btnCloseSleepTimer">✕</button>
+      </div>
+
+      <div class="timer-fade-tip">
+        <span>✨</span>
+        <span>智慧漸弱：倒數最後 30 秒自動緩慢淡出音量，溫柔伴您入眠不驚醒。</span>
+      </div>
+
+      <div class="timer-options-grid">
+        <button class="timer-opt-btn" data-minutes="15">
+          <span>15 分鐘</span>
+          <small style="color: var(--text-muted);">小憩微放鬆</small>
+        </button>
+        <button class="timer-opt-btn" data-minutes="30">
+          <span>30 分鐘</span>
+          <small style="color: var(--text-muted);">睡前黃金期</small>
+        </button>
+        <button class="timer-opt-btn" data-minutes="45">
+          <span>45 分鐘</span>
+          <small style="color: var(--text-muted);">深度沉浸聽</small>
+        </button>
+        <button class="timer-opt-btn" data-minutes="60">
+          <span>60 分鐘</span>
+          <small style="color: var(--text-muted);">整夜安穩眠</small>
+        </button>
+        <button class="timer-opt-btn" data-minutes="end_of_track" style="grid-column: span 2;">
+          <span>播完當前篇章後停止</span>
+          <small style="color: var(--text-muted);">聽完本篇自動關閉</small>
+        </button>
+        <button class="timer-opt-btn" data-minutes="off" style="grid-column: span 2; background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); color: #f87171;">
+          <span>關閉定時器</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 音訊實例 (Audio Engine: preload="none" 節省手機記憶體，點擊時純連網串流) -->
+  <audio id="audioEngine" preload="none"></audio>
+
+  <!-- 應用程式邏輯腳本 -->
+  <script src="app.js"></script>
+
+</body>
+</html>
