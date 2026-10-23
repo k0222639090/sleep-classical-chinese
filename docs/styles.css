@@ -209,7 +209,13 @@ body {
   letter-spacing: 0.05em;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+.brand-title-text {
+  display: inline-block;
+  white-space: nowrap;
 }
 
 .brand-badge {
@@ -1510,6 +1516,14 @@ html.is-pwa-standalone #btnInstallPwa {
   }
   .brand-title {
     font-size: 1.15rem;
+    gap: 6px;
+  }
+  .brand-title-text {
+    white-space: nowrap;
+    word-break: keep-all;
+  }
+  .brand-badge {
+    white-space: nowrap;
   }
   .brand-logo-img {
     width: 40px;
