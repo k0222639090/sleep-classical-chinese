@@ -1598,6 +1598,171 @@ html.is-pwa-standalone #btnInstallPwa {
   pointer-events: none;
 }
 
+
+/* ========================================================
+   📜 麥麥筆記卡通手帳紙張與便簽卡片風格 (Miley Notes Paper & Notepad Style)
+   ======================================================== */
+
+/* 1. 閱讀區主容器：像一本手繪手帳本頁 (Stationery Notebook Page) */
+.reading-card {
+  background: 
+    repeating-linear-gradient(180deg, transparent 0px, transparent 27px, rgba(246, 196, 83, 0.04) 28px),
+    linear-gradient(180deg, #1c2333 0%, #161c2b 50%, #121724 100%) !important;
+  border: 2.5px solid #5a3819 !important;
+  border-radius: 20px 14px 22px 16px / 16px 22px 14px 20px !important;
+  box-shadow: 
+    0 4px 0 #3e240e,
+    0 12px 30px rgba(0, 0, 0, 0.5) !important;
+  position: relative;
+}
+
+/* 頂部閱讀工具列：手繪手帳分割線 */
+.reading-toolbar {
+  border-bottom: 2px dashed rgba(246, 196, 83, 0.35) !important;
+  padding-bottom: 16px !important;
+}
+.reading-toolbar::after {
+  display: none !important; /* 移除重複生硬的分隔條 */
+}
+
+/* 分區標籤：卡通手帳小印章貼紙 */
+.section-label {
+  border-bottom: none !important;
+  padding: 5px 14px !important;
+  background: 
+    repeating-linear-gradient(180deg, transparent 0px, transparent 4px, rgba(110, 68, 28, 0.08) 5px),
+    linear-gradient(180deg, #fcedd0 0%, #ecd0a2 40%, #dfbe89 80%, #cf9d5d 100%) !important;
+  color: #3e220a !important;
+  border: 2px solid #5a3819 !important;
+  border-radius: 10px 4px 12px 5px / 5px 12px 4px 10px !important;
+  box-shadow: 0 2.5px 0 #3e240e !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.05em !important;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+}
+.section-label::after {
+  display: none !important;
+}
+
+/* 2. 【原文】區塊：暖黃羊皮紙手繪方格手帳卡片 (Warm Parchment Note Box) */
+.original-box {
+  background: 
+    repeating-linear-gradient(0deg, rgba(246, 196, 83, 0.04) 0px, rgba(246, 196, 83, 0.04) 1px, transparent 1px, transparent 24px),
+    linear-gradient(180deg, #242b3d 0%, #1c2232 100%) !important;
+  border: 2.5px solid #5a3819 !important;
+  border-left: 2.5px solid #5a3819 !important;
+  border-radius: 16px 8px 18px 10px / 10px 18px 8px 16px !important;
+  box-shadow: 
+    0 4px 0 #3e240e,
+    inset 0 0 16px rgba(0, 0, 0, 0.25) !important;
+  padding: 24px 26px !important;
+  position: relative;
+}
+
+/* 原文卡片左上角紙膠帶裝飾 (Cute Washi Tape Accent) */
+.original-box::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 28px;
+  width: 70px;
+  height: 18px;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(246, 196, 83, 0.75),
+    rgba(246, 196, 83, 0.75) 6px,
+    rgba(245, 158, 11, 0.85) 6px,
+    rgba(245, 158, 11, 0.85) 12px
+  );
+  border-left: 1.5px dashed rgba(255, 255, 255, 0.7);
+  border-right: 1.5px dashed rgba(255, 255, 255, 0.7);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+  transform: rotate(-3deg);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* 3. 【白話文直譯】區塊：清爽米白卡通便簽紙 (Parchment Paper Memo Box) */
+.translation-box {
+  background: 
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.02) 0px, rgba(255, 255, 255, 0.02) 1px, transparent 1px, transparent 22px),
+    linear-gradient(180deg, #1f2738 0%, #171d2b 100%) !important;
+  border: 2px solid #5a3819 !important;
+  border-radius: 14px 10px 16px 8px / 8px 16px 10px 14px !important;
+  box-shadow: 0 3px 0 #3e240e !important;
+  padding: 22px 26px !important;
+  position: relative;
+}
+
+/* 白話文右上角紙膠帶裝飾 */
+.translation-box::before {
+  content: '';
+  position: absolute;
+  top: -9px;
+  right: 28px;
+  width: 65px;
+  height: 16px;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(74, 222, 128, 0.75),
+    rgba(74, 222, 128, 0.75) 6px,
+    rgba(34, 197, 94, 0.85) 6px,
+    rgba(34, 197, 94, 0.85) 12px
+  );
+  border-left: 1.5px dashed rgba(255, 255, 255, 0.7);
+  border-right: 1.5px dashed rgba(255, 255, 255, 0.7);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transform: rotate(3deg);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* 4. 【字詞注釋】小卡片：手切便簽隨身小卡 (Flashcards) */
+.vocab-card {
+  background: linear-gradient(180deg, #222a3a 0%, #19202e 100%) !important;
+  border: 2px solid #5a3819 !important;
+  border-radius: 12px 6px 14px 6px / 6px 14px 6px 12px !important;
+  box-shadow: 0 3px 0 #3e240e !important;
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+.vocab-card:hover {
+  transform: translateY(-3px) scale(1.02) !important;
+  border-color: #f6c453 !important;
+  box-shadow: 0 5px 0 #3e240e, 0 8px 18px rgba(246, 196, 83, 0.2) !important;
+}
+
+/* 5. 【會考素養提要】區塊：暖橙色重點便簽本 (Orange Highlight Memo) */
+.exam-points-box {
+  background: 
+    repeating-linear-gradient(180deg, transparent 0px, transparent 23px, rgba(245, 158, 11, 0.05) 24px),
+    linear-gradient(180deg, #2a221a 0%, #1e1812 100%) !important;
+  border: 2.5px solid #713f12 !important;
+  border-radius: 16px 10px 18px 12px / 12px 18px 10px 16px !important;
+  box-shadow: 0 4px 0 #451a03 !important;
+  padding: 22px 26px !important;
+  position: relative;
+}
+
+/* 6. 播放器卡片與選集卡片：手繪質感外框 */
+.player-card,
+.playlist-card {
+  border: 2.5px solid #5a3819 !important;
+  border-radius: 18px 12px 20px 14px / 14px 20px 12px 18px !important;
+  box-shadow: 0 4px 0 #3e240e, 0 10px 24px rgba(0, 0, 0, 0.45) !important;
+  background: 
+    repeating-linear-gradient(180deg, transparent 0px, transparent 24px, rgba(255, 255, 255, 0.015) 25px),
+    linear-gradient(180deg, #1c2333 0%, #141a27 100%) !important;
+}
+
+/* 頂部 Header 外框同步卡通化 */
+.header-bar {
+  border: 2.5px solid #5a3819 !important;
+  border-radius: 18px 12px 18px 12px / 12px 18px 12px 18px !important;
+  box-shadow: 0 4px 0 #3e240e, 0 8px 20px rgba(0, 0, 0, 0.4) !important;
+  background: linear-gradient(180deg, #1f2738 0%, #161c28 100%) !important;
+}
+
+
 /* ========================================================
    🪵 麥麥筆記溫暖手繪卡通立體按鍵風格 (Miley Notes Cartoon Style Buttons)
    ======================================================== */
