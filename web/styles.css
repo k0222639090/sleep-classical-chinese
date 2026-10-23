@@ -209,13 +209,7 @@ body {
   letter-spacing: 0.05em;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 8px;
-}
-
-.brand-title-text {
-  display: inline-block;
-  white-space: nowrap;
 }
 
 .brand-badge {
@@ -389,9 +383,6 @@ body {
   border-radius: 50%;
   background: radial-gradient(circle, rgba(246, 196, 83, 0.25) 0%, transparent 70%);
   filter: blur(20px);
-  z-index: 1;
-  animation: pulseGlow 4s ease-in-out infinite alternate;
-}
   z-index: 1;
   animation: pulseGlow 4s ease-in-out infinite alternate;
 }
@@ -1516,14 +1507,6 @@ html.is-pwa-standalone #btnInstallPwa {
   }
   .brand-title {
     font-size: 1.15rem;
-    gap: 6px;
-  }
-  .brand-title-text {
-    white-space: nowrap;
-    word-break: keep-all;
-  }
-  .brand-badge {
-    white-space: nowrap;
   }
   .brand-logo-img {
     width: 40px;
@@ -1538,5 +1521,279 @@ html.is-pwa-standalone #btnInstallPwa {
   }
   .playlist-card {
     padding: 16px 12px;
+  }
+}
+
+
+/* 🌿 麥麥自然風格：手繪嫩葉藤蔓裝飾分隔線 (Vine Divider) */
+.header-bar {
+  position: relative;
+}
+.header-bar::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 12px;
+  right: 12px;
+  height: 12px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 12' width='80' height='12'%3E%3Cpath d='M0,6 Q20,2 40,6 T80,6' fill='none' stroke='%23f6c453' stroke-width='2' stroke-linecap='round' opacity='0.55'/%3E%3Cpath d='M18,5 Q24,1 28,4 Q24,7 18,5 Z' fill='%234ade80' stroke='%23f6c453' stroke-width='0.8' opacity='0.75'/%3E%3Ccircle cx='36' cy='4' r='2' fill='%23f59e0b' stroke='%23f6c453' stroke-width='0.8' opacity='0.85'/%3E%3Cpath d='M58,7 Q64,11 68,8 Q64,5 58,7 Z' fill='%2310b981' stroke='%23f6c453' stroke-width='0.8' opacity='0.75'/%3E%3Ccircle cx='72' cy='7' r='1.8' fill='%23f43f5e' stroke='%23f6c453' stroke-width='0.8' opacity='0.85'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-size: 80px 12px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* 🌿 閱讀區標題與分區的手繪綠葉藤蔓裝飾分隔線 */
+.reading-toolbar {
+  position: relative;
+  border-bottom: none !important;
+}
+.reading-toolbar::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 12' width='80' height='12'%3E%3Cpath d='M0,6 Q20,2 40,6 T80,6' fill='none' stroke='%23f6c453' stroke-width='1.8' stroke-linecap='round' opacity='0.45'/%3E%3Cpath d='M18,5 Q24,1 28,4 Q24,7 18,5 Z' fill='%234ade80' stroke='%23f6c453' stroke-width='0.8' opacity='0.6'/%3E%3Ccircle cx='36' cy='4' r='1.8' fill='%23f59e0b' stroke='%23f6c453' stroke-width='0.8' opacity='0.7'/%3E%3Cpath d='M58,7 Q64,11 68,8 Q64,5 58,7 Z' fill='%2310b981' stroke='%23f6c453' stroke-width='0.8' opacity='0.6'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-size: 80px 12px;
+  pointer-events: none;
+}
+
+/* 🌿 各段落分區標籤小藤蔓底線 */
+.section-label {
+  border-bottom: none !important;
+  position: relative;
+  padding-bottom: 8px;
+}
+.section-label::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  min-width: 80px;
+  height: 10px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 12' width='80' height='12'%3E%3Cpath d='M0,6 Q20,2 40,6 T80,6' fill='none' stroke='%23f6c453' stroke-width='1.8' stroke-linecap='round' opacity='0.6'/%3E%3Cpath d='M18,5 Q24,1 28,4 Q24,7 18,5 Z' fill='%234ade80' opacity='0.75'/%3E%3Ccircle cx='36' cy='4' r='1.8' fill='%23f59e0b' opacity='0.85'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-size: 80px 12px;
+  pointer-events: none;
+}
+
+/* 💊 麥麥專屬立體膠囊按鍵風格 (Capsule Pill Buttons with 3D Depth & Micro-Spring) */
+.btn-action,
+.mobile-nav-btn,
+.timer-chip,
+.cat-tab,
+.btn-font,
+.btn-mobile-jump-playlist,
+.timer-opt-btn {
+  border-radius: 9999px !important;
+  transition: all 0.24s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  font-weight: 700 !important;
+}
+
+.btn-action {
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.4), 0 6px 14px rgba(0, 0, 0, 0.25) !important;
+  border: 1.5px solid rgba(246, 196, 83, 0.3) !important;
+}
+.btn-action:hover {
+  transform: translateY(-2px) scale(1.03) !important;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.45), 0 8px 18px rgba(246, 196, 83, 0.25) !important;
+  border-color: var(--accent-gold) !important;
+}
+.btn-action:active {
+  transform: translateY(1px) scale(0.98) !important;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4) !important;
+}
+
+/* 膠囊播放控制按鈕群 */
+.ctrl-btn {
+  border-radius: 9999px !important;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+.ctrl-btn:hover {
+  transform: translateY(-2px) scale(1.06) !important;
+  border-color: rgba(246, 196, 83, 0.45) !important;
+}
+.ctrl-btn:active {
+  transform: translateY(1px) scale(0.96) !important;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35) !important;
+}
+
+.btn-play-pause {
+  box-shadow: 0 5px 0 #b45309, 0 10px 25px rgba(246, 196, 83, 0.45) !important;
+  border: 2px solid #fde047 !important;
+}
+.btn-play-pause:hover {
+  transform: translateY(-3px) scale(1.05) !important;
+  box-shadow: 0 8px 0 #b45309, 0 14px 30px rgba(246, 196, 83, 0.55) !important;
+}
+.btn-play-pause:active {
+  transform: translateY(2px) scale(0.96) !important;
+  box-shadow: 0 2px 0 #b45309 !important;
+}
+
+/* 膠囊選集分類標籤 */
+.cat-tab {
+  border-radius: 9999px !important;
+  padding: 6px 14px !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3) !important;
+}
+.cat-tab.active {
+  background: linear-gradient(135deg, rgba(246, 196, 83, 0.22), rgba(245, 158, 11, 0.15)) !important;
+  border-color: var(--accent-gold) !important;
+  box-shadow: 0 3px 0 rgba(180, 83, 9, 0.6), 0 0 15px rgba(246, 196, 83, 0.2) !important;
+}
+
+/* 膠囊字體縮放按鈕 */
+.btn-font {
+  border-radius: 9999px !important;
+  padding: 4px 10px !important;
+  border: 1px solid rgba(246, 196, 83, 0.25) !important;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3) !important;
+}
+.btn-font:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.4) !important;
+}
+
+/* 📱 手機直立防重疊核心保證 (Mobile Portrait Responsive Overlap Fix) */
+@media (max-width: 768px) {
+  .track-art-box {
+    aspect-ratio: 16 / 9 !important;
+    position: relative !important;
+  }
+  
+  /* 避免封面上的浮水印字與插圖主體重疊擠壓 */
+  .track-art-text-container {
+    bottom: 8px !important;
+    left: 10px !important;
+    right: 10px !important;
+    padding: 6px 10px !important;
+    background: rgba(7, 11, 20, 0.65) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(246, 196, 83, 0.25) !important;
+  }
+  
+  .track-art-chinese {
+    font-size: 1.25rem !important;
+    line-height: 1.2 !important;
+  }
+  
+  .track-art-sub {
+    font-size: 0.65rem !important;
+    margin-top: 2px !important;
+  }
+  
+  /* 當手機處於「正在播放 (player)」活頁籤時，只顯示核心播放器，不堆疊文言閱讀區，徹底解決重疊卡頓 */
+  #mainLayout[data-mobile-tab="player"] #mainReadingPanel {
+    display: none !important;
+  }
+  
+  #mainLayout[data-mobile-tab="reading"] #mainReadingPanel {
+    display: block !important;
+    width: 100% !important;
+  }
+  
+  /* 讓選集清單與文章大圖 100% 響應自適應 */
+  .reading-card {
+    padding: 20px 14px !important;
+    border-radius: 16px !important;
+  }
+  
+  .original-box,
+  .translation-box,
+  .exam-points-box {
+    padding: 16px 14px !important;
+    border-radius: 14px !important;
+  }
+  
+  .original-text-content {
+    font-size: 1.12rem !important;
+    line-height: 1.95 !important;
+    word-break: break-word !important;
+  }
+}
+
+/* 🔄 手機橫向 (Landscape 480px ~ 920px) 智慧雙欄排版支援 */
+@media (max-height: 520px) and (orientation: landscape) {
+  .app-container {
+    padding: 8px 12px 60px !important;
+    gap: 10px !important;
+  }
+  .header-bar {
+    padding: 6px 12px !important;
+  }
+  .brand-logo-img {
+    width: 32px !important;
+    height: 32px !important;
+  }
+  .brand-title {
+    font-size: 1rem !important;
+  }
+  .mobile-segmented-nav {
+    position: static !important;
+    margin-bottom: 6px !important;
+    padding: 4px !important;
+  }
+  .mobile-nav-btn {
+    padding: 6px 8px !important;
+    font-size: 0.78rem !important;
+  }
+  .main-layout {
+    grid-template-columns: 320px 1fr !important;
+    gap: 14px !important;
+  }
+  #mainLayout #mainPlayerCard {
+    display: flex !important;
+    padding: 12px !important;
+    gap: 10px !important;
+  }
+  .track-art-box {
+    aspect-ratio: 16 / 8 !important;
+  }
+  #mainLayout #mainReadingPanel {
+    display: block !important;
+  }
+  .reading-card {
+    padding: 16px 14px !important;
+    min-height: auto !important;
+  }
+}
+
+/* 📟 平板端 (Tablet 769px ~ 1180px 直立與橫向優雅適配) */
+@media (min-width: 769px) and (max-width: 1180px) {
+  .main-layout {
+    grid-template-columns: 360px 1fr !important;
+    gap: 20px !important;
+  }
+  .mobile-segmented-nav {
+    display: none !important;
+  }
+  .left-panel,
+  .right-panel {
+    display: flex !important;
+  }
+  #mainPlaylistCard {
+    display: flex !important;
+  }
+  #mainPlayerCard {
+    display: flex !important;
+  }
+  #mainReadingPanel {
+    display: block !important;
+  }
+  .btn-mobile-jump-playlist {
+    display: none !important;
+  }
+  .mobile-mini-player {
+    display: none !important;
   }
 }
