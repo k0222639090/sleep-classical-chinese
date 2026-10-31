@@ -229,6 +229,18 @@
             </h3>
           </div>
 
+          <!-- 裝置收聽進度與已聽篩選 (自動記住裝置收聽進度) -->
+          <div class="listening-tracker-box" id="listeningTrackerBox">
+            <div class="listening-stat-info">
+              <span>🎧</span>
+              <span id="listeningStatText">本機已聽 0 / 18 篇</span>
+              <span class="listening-progress-pill" id="listeningProgressPercent">0%</span>
+            </div>
+            <button class="filter-unread-toggle" id="btnFilterUnreadToggle" title="切換只顯示尚未聽過的篇章">
+              <span>僅看未聽</span>
+            </button>
+          </div>
+
           <!-- 分類標籤切換 -->
           <div class="category-tabs" id="categoryTabs">
             <button class="cat-tab active" data-category="ALL">全部篇章</button>

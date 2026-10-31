@@ -8,6 +8,7 @@ __pycache__/
 *.log
 
 # OS generated files
+.github/
 .DS_Store
 .DS_Store?
 ._*

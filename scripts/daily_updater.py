@@ -155,10 +155,16 @@ async def run_daily_update():
     with open(DATA_EPISODES_JSON, "w", encoding="utf-8") as f:
         json.dump(published_data, f, ensure_ascii=False, indent=2)
         
-    remaining = len(upcoming_pool) - (target_idx + 1)
+    # 計算未發布剩餘篇數並驗證安全儲備量（10 篇標準）
+    remaining_episodes = [ep for ep in upcoming_pool if ep["id"] not in published_ids and ep["id"] != target_ep["id"]]
+    remaining_count = len(remaining_episodes)
+    
     print(f"\n✅ 成功將「{target_ep['short_title']}」發布至網站！")
     print(f"📊 目前網站總篇數：{len(published_eps)} 篇")
-    print(f"📦 雲端儲備庫尚存：{remaining} 篇未來篇章待發布。")
+    if remaining_count < 10:
+        print(f"⚠️  【儲備警戒】雲端儲備庫尚存：{remaining_count} 篇未來篇章（低於 10 篇安全水位，請及時補充）！")
+    else:
+        print(f"📦 雲端儲備庫尚存：{remaining_count} 篇未來篇章待發布（儲備充足，滿足未來 10 天以上自動上新需求）！")
     return True
 
 if __name__ == "__main__":

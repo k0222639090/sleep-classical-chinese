@@ -3,7 +3,7 @@
  * 採用網路優先 (Network-First) 策略，離線時自動回退本機快取
  */
 
-const CACHE_NAME = 'sleep-classics-pwa-v1.0.0';
+const CACHE_NAME = 'sleep-classics-pwa-v2.1.0';
 
 const ASSETS_TO_CACHE = [
   './',

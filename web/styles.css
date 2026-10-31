@@ -2156,3 +2156,135 @@ html.is-pwa-standalone #btnInstallPwa {
     display: none !important;
   }
 }
+
+/* ==========================================================================
+   收聽進度條與已聽標記 (Listening Progress & History Tracker)
+   ========================================================================== */
+.listening-tracker-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  margin-bottom: 10px;
+  font-size: 0.8rem;
+}
+
+.listening-stat-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.listening-progress-pill {
+  font-size: 0.72rem;
+  padding: 2px 7px;
+  background: rgba(246, 196, 83, 0.15);
+  color: var(--accent-gold);
+  border-radius: 9999px;
+  font-weight: 600;
+}
+
+.filter-unread-toggle {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-muted);
+  border-radius: 9999px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.filter-unread-toggle:hover {
+  border-color: var(--accent-gold);
+  color: var(--text-secondary);
+}
+
+.filter-unread-toggle.active {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #34d399;
+  color: #34d399;
+  font-weight: 600;
+}
+
+/* 徽章標籤體系 */
+.badge-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.65rem;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  font-weight: 500;
+  vertical-align: middle;
+  margin-left: 5px;
+}
+
+.badge-tag.tag-today {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.2);
+}
+
+.badge-tag.tag-latest {
+  background: rgba(246, 196, 83, 0.15);
+  color: var(--accent-gold);
+  border: 1px solid rgba(246, 196, 83, 0.35);
+}
+
+.badge-tag.tag-listened {
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 已聽過的篇章樣式（保持顯示，色彩溫和、低干擾） */
+.playlist-item.is-listened {
+  opacity: 0.85;
+}
+
+.playlist-item.is-listened .item-badge {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+}
+
+.playlist-item.is-listened:hover {
+  opacity: 1;
+}
+
+.playlist-item.active.is-listened {
+  opacity: 1;
+}
+
+/* 標記已聽按鈕 */
+.btn-toggle-listened {
+  background: transparent;
+  border: none;
+  font-size: 0.85rem;
+  color: var(--text-dark);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: var(--transition-smooth);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-toggle-listened:hover {
+  color: #34d399;
+  transform: scale(1.15);
+}
+
+.btn-toggle-listened.is-done {
+  color: #34d399;
+}
+

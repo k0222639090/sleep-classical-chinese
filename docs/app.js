@@ -25,6 +25,11 @@
   let fontSizeLevel = 0; // -1, 0, 1, 2, 3
   let currentMobileTab = 'player'; // 'player', 'playlist', 'reading'
 
+  // 本機已聽狀態管理 (LocalStorage Persistence)
+  const STORAGE_KEY_LISTENED = 'miley_sleep_listened_episodes_v1';
+  let listenedSet = new Set();
+  let filterUnreadOnly = false;
+
   // 睡眠定時器狀態 (時間倒數模式)
   let sleepTimer = {
     mode: null,          // null, 'countdown'
@@ -129,6 +134,80 @@
   const oledIcon = document.getElementById('oledIcon');
   const oledText = document.getElementById('oledText');
 
+  // Listening Tracker elements
+  const listeningStatText = document.getElementById('listeningStatText');
+  const listeningProgressPercent = document.getElementById('listeningProgressPercent');
+  const btnFilterUnreadToggle = document.getElementById('btnFilterUnreadToggle');
+
+  // ==========================================
+  // 本機已聽狀態管理 (Listening History Engine)
+  // ==========================================
+  function loadListenedState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_LISTENED);
+      listenedSet = new Set(raw ? JSON.parse(raw) : []);
+    } catch (e) {
+      listenedSet = new Set();
+    }
+  }
+
+  function saveListenedState() {
+    try {
+      localStorage.setItem(STORAGE_KEY_LISTENED, JSON.stringify([...listenedSet]));
+    } catch (e) {}
+  }
+
+  function markEpisodeAsListened(epId, triggerReRender = true) {
+    if (!listenedSet.has(epId)) {
+      listenedSet.add(epId);
+      saveListenedState();
+      updateListeningProgressUI();
+      if (triggerReRender) {
+        renderPlaylist();
+      } else {
+        updatePlaylistListenedItemsUI();
+      }
+    }
+  }
+
+  function toggleEpisodeListened(epId) {
+    if (listenedSet.has(epId)) {
+      listenedSet.delete(epId);
+    } else {
+      listenedSet.add(epId);
+    }
+    saveListenedState();
+    updateListeningProgressUI();
+    renderPlaylist();
+  }
+
+  function updateListeningProgressUI() {
+    if (!listeningStatText || !episodes || episodes.length === 0) return;
+    const total = episodes.length;
+    let count = 0;
+    episodes.forEach(e => {
+      if (listenedSet.has(e.id)) count++;
+    });
+    const percent = Math.round((count / total) * 100);
+    listeningStatText.textContent = `本機已聽 ${count} / ${total} 篇`;
+    if (listeningProgressPercent) {
+      listeningProgressPercent.textContent = `${percent}%`;
+    }
+  }
+
+  function getLatestEpisodeId() {
+    if (!episodes || episodes.length === 0) return null;
+    // 取最後發布的篇章為最新篇
+    return episodes[episodes.length - 1].id;
+  }
+
+  function scrollToActivePlaylistItem() {
+    const activeEl = playlistItemsContainer.querySelector('.playlist-item.active');
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
   // ==========================================
   // 初始化與載入資料 (Initialization)
   // ==========================================
@@ -144,11 +223,18 @@
       if (!response.ok) throw new Error('無法載入 episodes.json');
       const data = await response.json();
       episodes = data.episodes || [];
-      filteredEpisodes = [...episodes];
 
-      if (episodes.length > 0) {
-        renderPlaylist();
-        selectEpisode(0, false);
+      // 載入本機已聽紀錄
+      loadListenedState();
+      applyFilters();
+      updateListeningProgressUI();
+
+      if (filteredEpisodes.length > 0) {
+        // 核心改進：從「下一篇未聽過的篇章」開始！若全已聽過則停在最新發布篇
+        const firstUnlistenedIdx = filteredEpisodes.findIndex(ep => !listenedSet.has(ep.id));
+        const startIdx = firstUnlistenedIdx !== -1 ? firstUnlistenedIdx : 0;
+        selectEpisode(startIdx, false);
+        setTimeout(scrollToActivePlaylistItem, 350);
       }
     } catch (err) {
       console.error('載入資料錯誤:', err);
@@ -428,7 +514,44 @@
   }
 
   // ==========================================
-  // 播放清單渲染 (Playlist Items with Stop Target Buttons)
+  // 篩選與過濾系統 (Category & Unread Filter)
+  // ==========================================
+  function applyFilters() {
+    let list = [...episodes];
+    if (currentCategory !== 'ALL') {
+      list = list.filter(e => e.category === currentCategory);
+    }
+    if (filterUnreadOnly) {
+      list = list.filter(e => !listenedSet.has(e.id));
+    }
+    filteredEpisodes = list;
+
+    // 保留或重新定位播放篇章索引
+    if (filteredEpisodes.length > 0) {
+      if (currentIndex >= filteredEpisodes.length) {
+        currentIndex = 0;
+      }
+    } else {
+      currentIndex = 0;
+    }
+    renderPlaylist();
+    updatePlaylistActiveState();
+  }
+
+  function filterCategory(cat) {
+    currentCategory = cat;
+    applyFilters();
+    if (filteredEpisodes.length > 0) {
+      // 優先跳至該分類下第一篇未聽過的篇章
+      const unlistenedIdx = filteredEpisodes.findIndex(ep => !listenedSet.has(ep.id));
+      const targetIdx = unlistenedIdx !== -1 ? unlistenedIdx : 0;
+      selectEpisode(targetIdx, false);
+      setTimeout(scrollToActivePlaylistItem, 200);
+    }
+  }
+
+  // ==========================================
+  // 播放清單渲染 (Playlist Items with Listened & Stop Target Buttons)
   // ==========================================
   function renderPlaylist() {
     playlistItemsContainer.innerHTML = '';
@@ -441,27 +564,58 @@
       btnJumpPlaylistText.textContent = `查看全部 ${filteredEpisodes.length} 篇選集清單`;
     }
 
+    if (filteredEpisodes.length === 0) {
+      playlistItemsContainer.innerHTML = `
+        <div style="text-align: center; padding: 30px 10px; color: var(--text-muted); font-size: 0.88rem;">
+          🎉 此分類下的文言文篇章您已全數聽完囉！<br>
+          <span style="font-size: 0.78rem; opacity: 0.8;">可關閉「僅看未聽」重新溫習，或靜候明日自動更新解鎖～</span>
+        </div>
+      `;
+      return;
+    }
+
+    const latestId = getLatestEpisodeId();
+    const todayStr = new Date().toISOString().slice(0, 10);
+
     filteredEpisodes.forEach((ep, index) => {
       const item = document.createElement('div');
       item.className = 'playlist-item';
       if (index === currentIndex) item.classList.add('active');
 
-      const isToday = index === 0;
+      const isListened = listenedSet.has(ep.id);
+      if (isListened) item.classList.add('is-listened');
+
       const isStopTarget = stopPlan.type === 'target_episode_id' && ep.id === stopPlan.targetEpisodeId;
       if (isStopTarget) item.classList.add('is-stop-target');
 
+      // 徽章判定：真正發布的最新篇，或已聽標記
+      let badgesHtml = '';
+      if (ep.id === latestId) {
+        if (ep.publish_date === todayStr) {
+          badgesHtml += '<span class="badge-tag tag-today">🌟 今日上新</span>';
+        } else {
+          badgesHtml += '<span class="badge-tag tag-latest">✨ 最新上線</span>';
+        }
+      }
+      if (isListened) {
+        badgesHtml += '<span class="badge-tag tag-listened">✓ 已聽過</span>';
+      }
+
       item.innerHTML = `
         <div class="item-left">
-          <div class="item-badge">${index + 1}</div>
+          <div class="item-badge">${isListened ? '✓' : index + 1}</div>
           <div class="item-meta">
             <span class="item-title">
               ${ep.short_title}
-              ${isToday ? '<span style="font-size: 0.65rem; background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16,185,129,0.3); border-radius: 9999px; padding: 1px 6px; margin-left: 4px;">今日上新</span>' : ''}
+              ${badgesHtml}
             </span>
-            <span class="item-sub">${ep.category}</span>
+            <span class="item-sub">${ep.category} · ${ep.dynasty}</span>
           </div>
         </div>
         <div class="item-right-actions">
+          <button class="btn-toggle-listened ${isListened ? 'is-done' : ''}" data-id="${ep.id}" title="${isListened ? '已聽過（點擊切換為未聽）' : '未聽（點擊標為已聽）'}">
+            ${isListened ? '✅' : '⚪'}
+          </button>
           <button class="btn-set-stop-point" data-id="${ep.id}" data-title="${ep.short_title}" title="設定播完此篇後自動休眠停止">
             ${isStopTarget ? '🛑 播完此篇停' : '🛑 設為終點'}
           </button>
@@ -475,18 +629,45 @@
 
       // 點擊清單項目切換播放
       item.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-set-stop-point')) return;
+        if (e.target.closest('.btn-set-stop-point') || e.target.closest('.btn-toggle-listened')) return;
         selectEpisode(index, true);
       });
 
+      // 點擊「切換已聽狀態」按鈕
+      const toggleListenedBtn = item.querySelector('.btn-toggle-listened');
+      if (toggleListenedBtn) {
+        toggleListenedBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleEpisodeListened(ep.id);
+        });
+      }
+
       // 點擊「設為終點」按鈕
       const stopBtn = item.querySelector('.btn-set-stop-point');
-      stopBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleStopTargetEpisode(ep.id, ep.short_title);
-      });
+      if (stopBtn) {
+        stopBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleStopTargetEpisode(ep.id, ep.short_title);
+        });
+      }
 
       playlistItemsContainer.appendChild(item);
+    });
+  }
+
+  function updatePlaylistListenedItemsUI() {
+    const items = playlistItemsContainer.querySelectorAll('.playlist-item');
+    items.forEach((item, index) => {
+      const ep = filteredEpisodes[index];
+      if (ep) {
+        const isListened = listenedSet.has(ep.id);
+        item.classList.toggle('is-listened', isListened);
+        const toggleBtn = item.querySelector('.btn-toggle-listened');
+        if (toggleBtn) {
+          toggleBtn.textContent = isListened ? '✅' : '⚪';
+          toggleBtn.classList.toggle('is-done', isListened);
+        }
+      }
     });
   }
 
@@ -507,20 +688,6 @@
         }
       }
     });
-  }
-
-  function filterCategory(cat) {
-    currentCategory = cat;
-    if (cat === 'ALL') {
-      filteredEpisodes = [...episodes];
-    } else {
-      filteredEpisodes = episodes.filter(e => e.category === cat);
-    }
-    currentIndex = 0;
-    renderPlaylist();
-    if (filteredEpisodes.length > 0) {
-      selectEpisode(0, false);
-    }
   }
 
   // ==========================================
@@ -848,15 +1015,24 @@
     // 音訊引擎事件
     audio.addEventListener('timeupdate', () => {
       updateProgressUI(audio.currentTime, audio.duration);
+      // 自動記錄：播放超過 85% 自動標記為已聽
+      if (audio.duration > 20 && (audio.currentTime / audio.duration) >= 0.85) {
+        const curEp = filteredEpisodes[currentIndex];
+        if (curEp) markEpisodeAsListened(curEp.id, false);
+      }
     });
 
     audio.addEventListener('loadedmetadata', () => {
       updateProgressUI(audio.currentTime, audio.duration);
     });
 
-    // 關鍵：一首播畢時的排程判定與自動切換
+    // 關鍵：一首播畢時的排程判定、已聽記錄與自動連播
     audio.addEventListener('ended', () => {
       const currentEp = filteredEpisodes[currentIndex];
+      if (currentEp) {
+        // 篇章播放完成，立即記錄為本機已聽
+        markEpisodeAsListened(currentEp.id, true);
+      }
 
       // 情況 1：已設定為特定篇章為終點
       if (stopPlan.type === 'target_episode_id' && currentEp && currentEp.id === stopPlan.targetEpisodeId) {
@@ -890,6 +1066,19 @@
 
     // 進度條拖曳或點擊
     progressWrapper.addEventListener('click', handleSeek);
+
+    // 未聽篇章篩選開關
+    if (btnFilterUnreadToggle) {
+      btnFilterUnreadToggle.addEventListener('click', () => {
+        filterUnreadOnly = !filterUnreadOnly;
+        btnFilterUnreadToggle.classList.toggle('active', filterUnreadOnly);
+        const textSpan = btnFilterUnreadToggle.querySelector('span');
+        if (textSpan) {
+          textSpan.textContent = filterUnreadOnly ? '顯示全部篇章' : '僅看未聽';
+        }
+        applyFilters();
+      });
+    }
 
     // 分類切換
     categoryTabs.addEventListener('click', (e) => {
