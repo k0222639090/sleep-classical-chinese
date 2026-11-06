@@ -40,6 +40,11 @@
     fadeDuration: 30     // 最後 30 秒平滑淡出音量
   };
 
+  // 睡前放鬆背景音樂狀態 (BGM State)
+  let isBgmEnabled = localStorage.getItem('miley_sleep_bgm_enabled') !== 'false';
+  let bgmTargetVolume = parseFloat(localStorage.getItem('miley_sleep_bgm_vol') || '0.22');
+  let bgmFadeInterval = null;
+
   // 定篇停止與連播排程狀態 (篇數 / 指定篇終點模式)
   let stopPlan = {
     type: null,          // null, 'episodes_count', 'target_episode_id'
@@ -139,15 +144,40 @@
   const listeningProgressPercent = document.getElementById('listeningProgressPercent');
   const btnFilterUnreadToggle = document.getElementById('btnFilterUnreadToggle');
 
+  // Background Music Elements (睡前放鬆背景音樂)
+  const bgmAudio = document.getElementById('bgmAudio');
+  const btnToggleBgm = document.getElementById('btnToggleBgm');
+  const bgmBadgeText = document.getElementById('bgmBadgeText');
+  const bgmVolRange = document.getElementById('bgmVolRange');
+  const bgmVolPercent = document.getElementById('bgmVolPercent');
+
   // ==========================================
   // 本機已聽狀態管理 (Listening History Engine)
   // ==========================================
   function loadListenedState() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY_LISTENED);
-      listenedSet = new Set(raw ? JSON.parse(raw) : []);
+      if (raw !== null) {
+        listenedSet = new Set(JSON.parse(raw));
+      } else {
+        // 預設已聽前 5 篇，從第 6 篇（荀巨伯遠看朋友）開始
+        listenedSet = new Set([
+          'shishuo_01',
+          'shishuo_02',
+          'shishuo_03',
+          'shishuo_04',
+          'shishuo_05'
+        ]);
+        saveListenedState();
+      }
     } catch (e) {
-      listenedSet = new Set();
+      listenedSet = new Set([
+        'shishuo_01',
+        'shishuo_02',
+        'shishuo_03',
+        'shishuo_04',
+        'shishuo_05'
+      ]);
     }
   }
 
@@ -189,10 +219,123 @@
       if (listenedSet.has(e.id)) count++;
     });
     const percent = Math.round((count / total) * 100);
-    listeningStatText.textContent = `本機已聽 ${count} / ${total} 篇`;
+    listeningStatText.textContent = `已自動記錄 ${count} / ${total} 篇`;
     if (listeningProgressPercent) {
       listeningProgressPercent.textContent = `${percent}%`;
     }
+  }
+
+  // ==========================================
+  // 睡前放鬆背景音樂控制引擎 (Ambient BGM Engine)
+  // ==========================================
+  function initBgm() {
+    if (!bgmAudio) return;
+    bgmAudio.volume = 0;
+    updateBgmUI();
+
+    if (btnToggleBgm) {
+      btnToggleBgm.addEventListener('click', toggleBgm);
+    }
+    if (bgmVolRange) {
+      bgmVolRange.value = Math.round(bgmTargetVolume * 100);
+      bgmVolRange.addEventListener('input', (e) => {
+        setBgmVolume(parseInt(e.target.value, 10) / 100);
+      });
+    }
+  }
+
+  function updateBgmUI() {
+    if (btnToggleBgm) {
+      btnToggleBgm.classList.toggle('active', isBgmEnabled);
+    }
+    if (bgmBadgeText) {
+      bgmBadgeText.textContent = isBgmEnabled ? '放鬆音樂: 開啟' : '放鬆音樂: 關閉';
+    }
+    if (bgmVolPercent) {
+      bgmVolPercent.textContent = `${Math.round(bgmTargetVolume * 100)}%`;
+    }
+    if (bgmVolRange) {
+      bgmVolRange.value = Math.round(bgmTargetVolume * 100);
+    }
+  }
+
+  function setBgmVolume(val) {
+    bgmTargetVolume = Math.max(0, Math.min(1, val));
+    localStorage.setItem('miley_sleep_bgm_vol', bgmTargetVolume.toString());
+    updateBgmUI();
+    if (bgmAudio && !bgmAudio.paused && isBgmEnabled) {
+      bgmAudio.volume = bgmTargetVolume;
+    }
+  }
+
+  function toggleBgm() {
+    isBgmEnabled = !isBgmEnabled;
+    localStorage.setItem('miley_sleep_bgm_enabled', isBgmEnabled ? 'true' : 'false');
+    updateBgmUI();
+    if (isBgmEnabled) {
+      if (isPlaying) playBgm(true);
+    } else {
+      pauseBgm(true);
+    }
+  }
+
+  function playBgm(fade = true) {
+    if (!bgmAudio || !isBgmEnabled) return;
+    if (bgmFadeInterval) clearInterval(bgmFadeInterval);
+
+    const playPromise = bgmAudio.play();
+    if (playPromise !== undefined) {
+      playPromise.then(() => {
+        if (!fade) {
+          bgmAudio.volume = bgmTargetVolume;
+          return;
+        }
+        bgmAudio.volume = 0;
+        const steps = 15;
+        const stepTime = 100; // 1.5 秒舒緩淡入
+        const volStep = bgmTargetVolume / steps;
+        let currentStep = 0;
+        bgmFadeInterval = setInterval(() => {
+          currentStep++;
+          if (currentStep >= steps || !isBgmEnabled) {
+            bgmAudio.volume = isBgmEnabled ? bgmTargetVolume : 0;
+            clearInterval(bgmFadeInterval);
+            bgmFadeInterval = null;
+          } else {
+            bgmAudio.volume = Math.min(bgmTargetVolume, currentStep * volStep);
+          }
+        }, stepTime);
+      }).catch(err => {
+        console.warn('BGM 自動播放受限:', err);
+      });
+    }
+  }
+
+  function pauseBgm(fade = true) {
+    if (!bgmAudio || bgmAudio.paused) return;
+    if (bgmFadeInterval) clearInterval(bgmFadeInterval);
+
+    if (!fade) {
+      bgmAudio.pause();
+      bgmAudio.volume = 0;
+      return;
+    }
+
+    const startVol = bgmAudio.volume;
+    const steps = 10;
+    const stepTime = 70; // 0.7 秒舒緩淡出
+    let currentStep = 0;
+    bgmFadeInterval = setInterval(() => {
+      currentStep++;
+      if (currentStep >= steps) {
+        bgmAudio.pause();
+        bgmAudio.volume = 0;
+        clearInterval(bgmFadeInterval);
+        bgmFadeInterval = null;
+      } else {
+        bgmAudio.volume = Math.max(0, startVol * (1 - currentStep / steps));
+      }
+    }, stepTime);
   }
 
   function getLatestEpisodeId() {
@@ -201,10 +344,31 @@
     return episodes[episodes.length - 1].id;
   }
 
+  function getNextUpEpisodeIndex() {
+    if (!filteredEpisodes || filteredEpisodes.length === 0) return 0;
+    const firstUnlistenedIdx = filteredEpisodes.findIndex(ep => !listenedSet.has(ep.id));
+    return firstUnlistenedIdx !== -1 ? firstUnlistenedIdx : 0;
+  }
+
   function scrollToActivePlaylistItem() {
     const activeEl = playlistItemsContainer.querySelector('.playlist-item.active');
-    if (activeEl) {
-      activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (!activeEl) return;
+
+    // 電腦版或有局部滾動條時，滾動到清單頂部可視區域
+    if (playlistItemsContainer && playlistItemsContainer.scrollHeight > playlistItemsContainer.clientHeight) {
+      const topPos = activeEl.offsetTop - playlistItemsContainer.offsetTop - 8;
+      playlistItemsContainer.scrollTo({ top: Math.max(0, topPos), behavior: 'smooth' });
+    }
+
+    // 行動版在整頁滾動時，如果正在選集清單分頁，滾動頁面讓該項目位於畫面頂部
+    if (currentMobileTab === 'playlist') {
+      const headerOffset = 130; // 避開頂部固定 Header 與導航列
+      const elementPosition = activeEl.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+      window.scrollTo({
+        top: Math.max(0, offsetPosition),
+        behavior: 'smooth'
+      });
     }
   }
 
@@ -213,6 +377,7 @@
   // ==========================================
   async function init() {
     loadOledPreference();
+    initBgm();
     setupEventListeners();
     await loadEpisodesData();
   }
@@ -230,9 +395,8 @@
       updateListeningProgressUI();
 
       if (filteredEpisodes.length > 0) {
-        // 核心改進：從「下一篇未聽過的篇章」開始！若全已聽過則停在最新發布篇
-        const firstUnlistenedIdx = filteredEpisodes.findIndex(ep => !listenedSet.has(ep.id));
-        const startIdx = firstUnlistenedIdx !== -1 ? firstUnlistenedIdx : 0;
+        // 從「下一篇未聽過的篇章」開始！若全已聽過則停在第 1 篇或最新發布篇
+        const startIdx = getNextUpEpisodeIndex();
         selectEpisode(startIdx, false);
         setTimeout(scrollToActivePlaylistItem, 350);
       }
@@ -258,8 +422,13 @@
     // 迷你播放器浮動條狀態
     updateMiniPlayerUI();
 
-    // 平滑滾動置頂，讓切換後的畫面完全展開
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (tabName === 'playlist') {
+      // 點進選集清單時，立即自動精準滾動至當前接續播放的篇章，直接出現在視野第一個！
+      setTimeout(scrollToActivePlaylistItem, 150);
+    } else {
+      // 平滑滾動置頂，讓切換後的畫面完全展開
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }
 
   function updateMiniPlayerUI() {
@@ -325,6 +494,8 @@
       mainPlayerCard.classList.add('is-playing');
       updatePlaylistActiveState();
       updateMiniPlayerUI();
+      // 伴隨解說音訊同步淡入放鬆背景音樂
+      playBgm(true);
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'playing';
       }
@@ -334,6 +505,7 @@
       btnPlayPause.textContent = '▶';
       mainPlayerCard.classList.remove('is-playing');
       updateMiniPlayerUI();
+      pauseBgm(false);
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'paused';
       }
@@ -348,6 +520,8 @@
     mainPlayerCard.classList.remove('is-playing');
     updatePlaylistActiveState();
     updateMiniPlayerUI();
+    // 伴隨解說暫停同步舒緩淡出背景音樂
+    pauseBgm(true);
     if ('mediaSession' in navigator) {
       navigator.mediaSession.playbackState = 'paused';
     }
@@ -362,6 +536,10 @@
   }
 
   function playNext() {
+    const curEp = filteredEpisodes[currentIndex];
+    if (curEp && audio.duration > 15 && (audio.currentTime / audio.duration) >= 0.80) {
+      markEpisodeAsListened(curEp.id, true);
+    }
     const nextIndex = (currentIndex + 1) % filteredEpisodes.length;
     selectEpisode(nextIndex, true);
   }
@@ -576,6 +754,7 @@
 
     const latestId = getLatestEpisodeId();
     const todayStr = new Date().toISOString().slice(0, 10);
+    const nextUpIdx = getNextUpEpisodeIndex();
 
     filteredEpisodes.forEach((ep, index) => {
       const item = document.createElement('div');
@@ -585,11 +764,17 @@
       const isListened = listenedSet.has(ep.id);
       if (isListened) item.classList.add('is-listened');
 
+      const isNextUp = index === nextUpIdx && !isListened;
+      if (isNextUp) item.classList.add('is-next-up');
+
       const isStopTarget = stopPlan.type === 'target_episode_id' && ep.id === stopPlan.targetEpisodeId;
       if (isStopTarget) item.classList.add('is-stop-target');
 
-      // 徽章判定：真正發布的最新篇，或已聽標記
+      // 徽章判定：接續開始篇、真正發布的最新篇、或自動已聽打勾
       let badgesHtml = '';
+      if (isNextUp) {
+        badgesHtml += '<span class="badge-tag tag-next-up">▶ 接續收聽</span>';
+      }
       if (ep.id === latestId) {
         if (ep.publish_date === todayStr) {
           badgesHtml += '<span class="badge-tag tag-today">🌟 今日上新</span>';
@@ -598,12 +783,12 @@
         }
       }
       if (isListened) {
-        badgesHtml += '<span class="badge-tag tag-listened">✓ 已聽過</span>';
+        badgesHtml += '<span class="badge-tag tag-listened">✓ 已聽完</span>';
       }
 
       item.innerHTML = `
         <div class="item-left">
-          <div class="item-badge">${isListened ? '✓' : index + 1}</div>
+          <div class="item-badge" title="${isListened ? '已自動打勾聽完' : '第 ' + (index + 1) + ' 篇'}">${isListened ? '✓' : index + 1}</div>
           <div class="item-meta">
             <span class="item-title">
               ${ep.short_title}
@@ -613,9 +798,6 @@
           </div>
         </div>
         <div class="item-right-actions">
-          <button class="btn-toggle-listened ${isListened ? 'is-done' : ''}" data-id="${ep.id}" title="${isListened ? '已聽過（點擊切換為未聽）' : '未聽（點擊標為已聽）'}">
-            ${isListened ? '✅' : '⚪'}
-          </button>
           <button class="btn-set-stop-point" data-id="${ep.id}" data-title="${ep.short_title}" title="設定播完此篇後自動休眠停止">
             ${isStopTarget ? '🛑 播完此篇停' : '🛑 設為終點'}
           </button>
@@ -629,18 +811,9 @@
 
       // 點擊清單項目切換播放
       item.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-set-stop-point') || e.target.closest('.btn-toggle-listened')) return;
+        if (e.target.closest('.btn-set-stop-point')) return;
         selectEpisode(index, true);
       });
-
-      // 點擊「切換已聽狀態」按鈕
-      const toggleListenedBtn = item.querySelector('.btn-toggle-listened');
-      if (toggleListenedBtn) {
-        toggleListenedBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          toggleEpisodeListened(ep.id);
-        });
-      }
 
       // 點擊「設為終點」按鈕
       const stopBtn = item.querySelector('.btn-set-stop-point');
@@ -662,10 +835,9 @@
       if (ep) {
         const isListened = listenedSet.has(ep.id);
         item.classList.toggle('is-listened', isListened);
-        const toggleBtn = item.querySelector('.btn-toggle-listened');
-        if (toggleBtn) {
-          toggleBtn.textContent = isListened ? '✅' : '⚪';
-          toggleBtn.classList.toggle('is-done', isListened);
+        const badge = item.querySelector('.item-badge');
+        if (badge) {
+          badge.textContent = isListened ? '✓' : (index + 1);
         }
       }
     });
@@ -800,10 +972,13 @@
     sleepTimer.intervalId = setInterval(() => {
       sleepTimer.remainingSeconds--;
 
-      // 最後 30 秒自動柔和漸弱音量 (Gentle Audio Fade-Out)
+      // 最後 30 秒主音訊與背景音樂同步柔和漸弱 (Gentle Synchronized Fade-Out)
       if (sleepTimer.remainingSeconds <= sleepTimer.fadeDuration && sleepTimer.remainingSeconds > 0) {
         const factor = sleepTimer.remainingSeconds / sleepTimer.fadeDuration;
         audio.volume = Math.max(0, sleepTimer.baseVolume * factor);
+        if (bgmAudio && !bgmAudio.paused && isBgmEnabled) {
+          bgmAudio.volume = Math.max(0, bgmTargetVolume * factor);
+        }
       }
 
       if (sleepTimer.remainingSeconds <= 0) {
@@ -1015,10 +1190,12 @@
     // 音訊引擎事件
     audio.addEventListener('timeupdate', () => {
       updateProgressUI(audio.currentTime, audio.duration);
-      // 自動記錄：播放超過 85% 自動標記為已聽
-      if (audio.duration > 20 && (audio.currentTime / audio.duration) >= 0.85) {
+      // 裝置自己偵測記錄：當篇章播放到 90% 以上或剩餘時間少於 4 秒時，裝置自動打勾記錄為已聽完！
+      if (audio.duration > 15 && (audio.currentTime >= audio.duration - 4 || audio.currentTime / audio.duration >= 0.90)) {
         const curEp = filteredEpisodes[currentIndex];
-        if (curEp) markEpisodeAsListened(curEp.id, false);
+        if (curEp && !listenedSet.has(curEp.id)) {
+          markEpisodeAsListened(curEp.id, true);
+        }
       }
     });
 

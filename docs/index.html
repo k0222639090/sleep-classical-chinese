@@ -211,6 +211,19 @@
             </div>
           </div>
 
+          <!-- 睡前放鬆背景音樂控制列 (獨立音軌、柔和底襯、伴隨解說) -->
+          <div class="bgm-control-bar" id="bgmControlBar">
+            <button class="bgm-chip active" id="btnToggleBgm" title="開啟或關閉睡前放鬆背景音樂">
+              <span class="bgm-icon">🎵</span>
+              <span id="bgmBadgeText">放鬆音樂: 開啟</span>
+            </button>
+            <div class="bgm-slider-wrap" title="滑動調節背景音樂音量">
+              <span class="bgm-vol-icon">🔉</span>
+              <input type="range" id="bgmVolRange" class="bgm-vol-range" min="0" max="100" value="22" step="2" />
+              <span id="bgmVolPercent" class="bgm-vol-percent">22%</span>
+            </div>
+          </div>
+
           <!-- 手機版快速查看選集按鈕 -->
           <button class="btn-mobile-jump-playlist" id="btnMobileJumpPlaylist" title="查看全部篇章選集">
             <span>📖</span>
@@ -229,11 +242,11 @@
             </h3>
           </div>
 
-          <!-- 裝置收聽進度與已聽篩選 (自動記住裝置收聽進度) -->
+          <!-- 裝置收聽進度與已聽篩選 (播放完畢自動打勾記錄，免手動操作) -->
           <div class="listening-tracker-box" id="listeningTrackerBox">
             <div class="listening-stat-info">
-              <span>🎧</span>
-              <span id="listeningStatText">本機已聽 0 / 18 篇</span>
+              <span class="stat-check-badge">✓</span>
+              <span id="listeningStatText">已自動記錄 0 / 18 篇</span>
               <span class="listening-progress-pill" id="listeningProgressPercent">0%</span>
             </div>
             <button class="filter-unread-toggle" id="btnFilterUnreadToggle" title="切換只顯示尚未聽過的篇章">
@@ -425,6 +438,9 @@
 
   <!-- 音訊實例 (Audio Engine: playsinline 支援手機鎖定螢幕與背景播放) -->
   <audio id="audioEngine" playsinline webkit-playsinline preload="auto"></audio>
+
+  <!-- 放鬆背景音樂實例 (Ambient Sleep Music: 獨立音軌、柔和底襯、無縫循環) -->
+  <audio id="bgmAudio" playsinline webkit-playsinline loop preload="auto" src="audio/bgm_sleep_relax.m4a"></audio>
 
   <!-- 應用程式邏輯腳本 -->
   <script src="app.js"></script>
